@@ -37,7 +37,7 @@ class Dataset:
         
         property_commands = ['zfs get -H -o value org.wit:retention {0}',
                              'zfs get -H -o value org.wit:destinations {0}',
-                             'zfs get -H -t snap -r {0} -o name']
+                             'zfs list -H -t snap -r {0} -o name']
 
         try:
             prop_out = []
@@ -66,6 +66,14 @@ class Dataset:
         else:
             self.log.debug("No destinations set for dataset {0}".format(self.name))
 
+        if len(prop_out) > 2:
+            for snap in prop_out[2].split():
+                this_snap = snapshot.Snapshot(this_snap.rstrip())
+                self.snapshots.append(this_snap)
+        else:
+            self.log.debug("No snapshots found for this dataset")
+
+
     def get_snapshot(self):
 
         command = self.generic_get.format(PREFIX, 'backup', self.name)
@@ -83,16 +91,3 @@ class Dataset:
                 return False
         else:
             return False
-    def get_snaplist(self):
-
-        command = 'zfs list -H -t snap -r {0} -o name'.format(self.name)
-
-        try:
-            unfmt_snaplist = utils.run_command(command)
-        except subprocess.CalledProcessError as e:
-            self.log.error(e)
-        
-        self.snaplist = []
-
-        for snap in unfmt_snaplist.split():
-            
