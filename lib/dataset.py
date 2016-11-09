@@ -30,10 +30,35 @@ class Dataset:
         d = dict(self.__dict__)
         del d['log']
         return d
+    
+    def get_snapshot(self):
+
+        # This is a one off as it does not need to be stored - only ever
+        # referenced on the first run of the scheduler and then just assumed
+        # to be the case - nothing else from this class gets run if this
+        # returns false...
+
+        command = self.generic_get.format(PREFIX, 'backup', self.name)
+        
+        try:
+            snapshot = utils.run_command(command)
+        except subprocess.CalledProcessError as e:
+            self.log.error(e)
+            raise
+
+        if snapshot.rstrip() != '-':
+            if snapshot.rstrip() == 'yes':
+                return True
+            elif snapshot.rstrip() == 'no':
+                return False
+        else:
+            return False
 
     def get_properties(self):
 
         # Does all of the properties at once - this way it can be threaded more efficiently
+
+        # NOTE - This is probably best not hardcoded huh...
         
         property_commands = ['zfs get -H -o value org.wit:retention {0}',
                              'zfs get -H -o value org.wit:destinations {0}',
@@ -41,7 +66,8 @@ class Dataset:
 
         try:
             prop_out = []
-            prop_out.append(utils.run_command(property_command.format(self.name)))
+            for cmd in property_commands:
+                prop_out.append(utils.run_command(cmd.format(self.name)))
         except subprocess.CalledProcessError as e:
             self.log.error(e)
             raise
@@ -72,22 +98,3 @@ class Dataset:
                 self.snapshots.append(this_snap)
         else:
             self.log.debug("No snapshots found for this dataset")
-
-
-    def get_snapshot(self):
-
-        command = self.generic_get.format(PREFIX, 'backup', self.name)
-        
-        try:
-            snapshot = utils.run_command(command)
-        except subprocess.CalledProcessError as e:
-            self.log.error(e)
-            raise
-
-        if snapshot.rstrip() != '-':
-            if snapshot.rstrip() == 'yes':
-                return True
-            elif snapshot.rstrip() == 'no':
-                return False
-        else:
-            return False

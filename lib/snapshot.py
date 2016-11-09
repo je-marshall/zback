@@ -12,8 +12,29 @@ class Snapshot:
             self.log = logging.getLogger('witback.snap')
             
             self.name = name
-            self.datestamp = None
-            self.userrefs = None
+            self.date = None
+            self.holds = None
+
+        def get_properties(self):
+
+            # All in one function to help with threading
+
+            property_commands = ['zfs get -H creation {0}',
+                                 'zfs holds -H {0}']
+            
+            try:
+                prop_out = []
+                for cmd in property_commands:
+                    prop_out.append(utils.run_command(cmd.format(self.name)))
+            except subprocess.CalledProcessError as e:
+                self.log.error(e)
+                raise
+
+            date = prop_out[0].split('\t')[2]
+            tags = []
+
+            for unfmt_tag in prop_out[1].splitlines():
+                    tags.append
 
         def get_date(self):
 
