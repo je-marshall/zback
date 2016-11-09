@@ -14,7 +14,7 @@ def run_command(command):
     ''' 
         Takes a command as a string and splits it, then runs it and returns
     '''
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
     if type(command) is not str:
         log.error("Cannot run command with args:")
         log.error(command)
@@ -39,7 +39,7 @@ def date_from_name(name):
     '''
         Takes a snapshot name and converts it to a datetime object
     '''
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
     fmt_string = '%Y-%m-%d-%H%M%S'
     try:
         date = datetime.datetime.strptime(name, fmt_string)
@@ -58,7 +58,7 @@ def name_from_date(date):
     '''
         Takes a datetime object and converts it to a snapshot name
     '''
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
     fmt_string = '%Y-%m-%d-%H%M%S'
     try:
         name = date.strftime(fmt_string)
@@ -66,14 +66,30 @@ def name_from_date(date):
         log.warning("Incorrect value passed, not a date object")
         log.debug(e)
         return False
-    
+
     return name
+
+def date_from_string(string):
+    '''
+        Takes a ZFS string date output and converts it to a datetime object
+    '''
+
+    log = logging.getLogger('zback.utils')
+    fmt_string = '%a %b %d %H:%M %Y'
+    try:
+        date = datetime.datetime.strptime(string, fmt_string)
+    except ValueError as e:
+        log.debug("Timestamp format incorrect: {0}".format(string))
+        log.debug(e)
+        raise
+
+    return date
 
 def sched_from_schema(schema):
     '''
         Takes a schema and turns it into a dict
     '''
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
 
     # So this also turns out to be much easier than I thought
 
@@ -84,7 +100,7 @@ def sched_from_schema(schema):
     if not schedule:
         log.warning("Invalid schedule: {0}".format(schema))
         raise ValueError
-    
+
     hours = 0
     days = 0
     weeks = 0
@@ -97,11 +113,11 @@ def sched_from_schema(schema):
             hours = int(number)
         elif letter == 'd':
             days = int(number)
-        elif letter =='w':
+        elif letter == 'w':
             weeks = int(number)
         elif letter == 'm':
             months = int(number)
-    
+
     return {'hours' : hours, 'days' : days, 'weeks' : weeks, 'months' : months}
 
 def schema_from_sched(sched):
@@ -109,14 +125,14 @@ def schema_from_sched(sched):
         Takes a sched (dict) and parses it into a schema
     '''
 
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
 
     try:
         schema = "{0}h{1}d{2}w{3}m".format(sched['hours'],
                                            sched['days'],
                                            sched['weeks'],
                                            sched['months']
-                                           )
+                                          )
         return schema
     except:
         log.debug("Invalid schedule supplied: {0}".format(sched))
@@ -130,7 +146,7 @@ def parse_destinations(destinations):
         sending schedules
     '''
 
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
 
     return_list = []
     valid_send = ['hourly', 'daily', 'weekly', 'monthly']
@@ -155,14 +171,14 @@ def format_destinations(destinations):
         Takes a list of desintations and turns it into a string
     '''
 
-    log = logging.getLogger('zback.helpers')
+    log = logging.getLogger('zback.utils')
 
     return_string = ''
-    
+
     for dest in destinations:
         this_dest = "|".join(dest)
-        return_string+=this_dest
-        return_string+=","
+        return_string += this_dest
+        return_string += ","
 
     return return_string.rstrip(",")
 
@@ -172,9 +188,9 @@ def snaps_to_delete(snap_list, retention, held_snapshots):
         Takes a list of snapshots, rather than interacting directly with the
         dataset and returns a list of snapshots that need deleting
     '''
-    
+
     # Initialise the lists
-    snaps_to_delete = []
+    snaplist = []
 
     months = []
     weeks = []
@@ -199,9 +215,9 @@ def snaps_to_delete(snap_list, retention, held_snapshots):
         elif len(hours) < retention['hours']:
             hours.append(snap)
         if snap not in hours and snap not in days and snap not in weeks and snap not in months:
-            snaps_to_delete.append(snap)
-            
-    return snaps_to_delete  
+            snaplist.append(snap)
+
+    return snaplist
 
 def parse_config(config_file, defaults):
     '''
@@ -286,7 +302,7 @@ def get_open_port():
     '''
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("",0))
+    s.bind(("", 0))
     s.listen(1)
     port = s.getsockname()[1]
     s.close()
