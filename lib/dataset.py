@@ -29,10 +29,7 @@ class Dataset(object):
 
     def get_snapshot(self):
         '''
-        This is a one off as it does not need to be stored - only ever
-        referenced on the first run of the scheduler and then just assumed
-        to be the case - nothing else from this class gets run if this
-        returns false...
+        Returns false if this dataset does not need backing
         '''
 
         command = self.generic_get.format(PREFIX, 'backup', self.name)
