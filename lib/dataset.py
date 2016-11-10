@@ -108,3 +108,31 @@ class Dataset(object):
         except subprocess.CalledProcessError as e:
             self.log.error(e)
             raise
+
+    
+    @staticmethod
+    def get_datasets(return_all = False):
+        '''
+        Loops all available datasets and returns a list of dataset objects
+        If return_all is True, returns root datasets, ie STORAGE as well as
+        STORAGE/dataset
+        '''
+        dataset_list = []
+        command = 'zfs list -H -o name'
+
+        try:
+            unfmt_datasets = utils.run_command(command)
+        except subprocess.CalledProcessError as e:
+            raise
+
+        if not unfmt_datasets:
+            raise RuntimeError("No datasets found")
+
+        for dataset in unfmt_datasets.split():
+            if not return_all:
+                if len(dataset.split('/')) == 1:
+                    continue
+            this_set = Dataset(dataset)
+            dataset_list.append(this_set)
+
+        return dataset_list

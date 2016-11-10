@@ -112,4 +112,3 @@ class Snapshot(object):
         except subprocess.CalledProcessError as e:
             self.log.error(e)
             raise
-

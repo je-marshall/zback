@@ -1,14 +1,16 @@
 from operator import itemgetter
-from itertools import chain
+import threading
+import multiprocessing
+import Queue
 import socket
 import pickle
 import ConfigParser
 import subprocess
 import datetime
 import logging
-import shlex
 import re
 import os
+import dataset
 
 def run_command(command):
     ''' 
@@ -307,3 +309,88 @@ def get_open_port():
     port = s.getsockname()[1]
     s.close()
     return port
+
+def snapshot_worker(snapshot_q):
+    '''
+    Gets snapshot properties
+    '''
+
+    log = logging.getLogger('witback.utils')
+
+    while True:
+        this_snap = snapshot_q.get()
+
+        try:
+            this_snap.get_properties()
+        except ValueError:
+            log.error("Error parsing date for snapshot {0}".format(this_snap.name))
+            continue
+
+        snapshot_q.task_done()
+
+def dataset_worker(dataset_q, snapshot_q):
+    '''
+    Gets dataset properties, then puts all snapshots for each set in 
+    the snapshot queue, to be processed separately
+    '''
+
+    log = logging.getLogger('witback.utils')
+
+    while True:
+        this_set = dataset_q.get()
+        if not this_set.get_snapshot():
+            continue
+
+        try:
+            this_set.get_properties()
+        except ValueError:
+            log.error("Invalid retention schema for dataset {0}".format(this_set.name))
+            continue
+
+        if this_set.snaplist is not None:
+            for snap in this_set.snaplist:
+                snapshot_q.put(snap)
+
+        dataset_q.task_done()
+
+def refresh_properties():
+    '''
+    Refreshes dataset and snapshot properties using threading for speed
+    '''
+
+    log = logging.getLogger('witback.utils')
+    dataset_q = Queue.Queue()
+    snapshot_q = Queue.Queue()
+
+    max_threads = multiprocessing.cpu_count()
+
+    try:
+        set_list = dataset.Dataset.get_datasets()
+    except subprocess.CalledProcessError as e:
+        log.error(e)
+        raise
+
+    for this_set in set_list:
+        dataset_q.put(this_set)
+
+    if dataset_q.empty():
+        raise Queue.Empty
+    
+    for i in range(max_threads):
+        worker = threading.Thread(target=dataset_worker, args=(dataset_q, snapshot_q))
+        worker.setDaemon = True
+        worker.start()
+    
+    dataset_q.join()
+
+    if snapshot_q.empty():
+        raise Queue.Empty
+
+    for i in range(max_threads):
+        worker = threading.Thread(target=snapshot_worker, args=(snapshot_q,))
+        worker.setDaemon = True
+        worker.start()
+
+    snapshot_q.join()
+
+    return set_list
