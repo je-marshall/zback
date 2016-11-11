@@ -317,13 +317,14 @@ def snapshot_worker(snapshot_q):
 
     log = logging.getLogger('witback.utils')
 
-    while True:
+    while not snapshot_q.empty():
         this_snap = snapshot_q.get()
 
         try:
             this_snap.get_properties()
         except ValueError:
             log.error("Error parsing date for snapshot {0}".format(this_snap.name))
+            snapshot_q.task_done()
             continue
 
         snapshot_q.task_done()
@@ -336,15 +337,17 @@ def dataset_worker(dataset_q, snapshot_q):
 
     log = logging.getLogger('witback.utils')
 
-    while True:
+    while not dataset_q.empty():
         this_set = dataset_q.get()
         if not this_set.get_snapshot():
+            dataset_q.task_done()
             continue
 
         try:
             this_set.get_properties()
         except ValueError:
             log.error("Invalid retention schema for dataset {0}".format(this_set.name))
+            dataset_q.task_done()
             continue
 
         if this_set.snaplist is not None:
@@ -374,7 +377,7 @@ def refresh_properties():
         dataset_q.put(this_set)
 
     if dataset_q.empty():
-        raise Queue.Empty
+        raise Queue.Empty("No datasets found")
     
     for i in range(max_threads):
         worker = threading.Thread(target=dataset_worker, args=(dataset_q, snapshot_q))
@@ -384,7 +387,8 @@ def refresh_properties():
     dataset_q.join()
 
     if snapshot_q.empty():
-        raise Queue.Empty
+        log.warning("No snapshots found")
+        return set_list
 
     for i in range(max_threads):
         worker = threading.Thread(target=snapshot_worker, args=(snapshot_q,))

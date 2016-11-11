@@ -32,7 +32,7 @@ class Dataset(object):
         Returns false if this dataset does not need backing
         '''
 
-        command = self.generic_get.format(PREFIX, 'backup', self.name)
+        command = 'zfs get -H -o value org.wit:backup {0}'.format(self.name)
 
         try:
             snap = utils.run_command(command)
