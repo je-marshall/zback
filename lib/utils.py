@@ -1,4 +1,3 @@
-from operator import itemgetter
 import threading
 import multiprocessing
 import Queue
@@ -185,42 +184,6 @@ def format_destinations(destinations):
     return return_string.rstrip(",")
 
 
-def snaps_to_delete(snap_list, retention, held_snapshots):
-    '''
-        Takes a list of snapshots, rather than interacting directly with the
-        dataset and returns a list of snapshots that need deleting
-    '''
-
-    # Initialise the lists
-    snaplist = []
-
-    months = []
-    weeks = []
-    days = []
-    hours = []
-
-
-    # So it turns out to be quite simple - build a list of hours, days, weeks
-    # and months until each list gets full, which is dictated by the retention.
-    # Once a list is full, any snapshot that meets the criteria gets put in the
-    # delete bin instead.
-    for snap in sorted(snap_list, key=itemgetter('date'), reverse=True):
-        if snap['date'].hour == 00:
-            if len(hours) < retention['hours']:
-                hours.append(snap)
-            if len(days) < retention['days']:
-                days.append(snap)
-            if snap['date'].weekday() == 6 and len(weeks) < retention['weeks']:
-                weeks.append(snap)
-            if snap['date'].day == 1 and len(months) < retention['months']:
-                months.append(snap)
-        elif len(hours) < retention['hours']:
-            hours.append(snap)
-        if snap not in hours and snap not in days and snap not in weeks and snap not in months:
-            snaplist.append(snap)
-
-    return snaplist
-
 def parse_config(config_file, defaults):
     '''
         Parses a zback config file and returns a dictionary
@@ -339,10 +302,6 @@ def dataset_worker(dataset_q, snapshot_q):
 
     while not dataset_q.empty():
         this_set = dataset_q.get()
-        if not this_set.get_snapshot():
-            dataset_q.task_done()
-            continue
-
         try:
             this_set.get_properties()
         except ValueError:

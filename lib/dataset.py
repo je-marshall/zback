@@ -27,34 +27,14 @@ class Dataset(object):
         del d['log']
         return d
 
-    def get_snapshot(self):
-        '''
-        Returns false if this dataset does not need backing
-        '''
-
-        command = 'zfs get -H -o value org.wit:backup {0}'.format(self.name)
-
-        try:
-            snap = utils.run_command(command)
-        except subprocess.CalledProcessError as e:
-            self.log.error(e)
-            raise
-
-        if snap.rstrip() != '-':
-            if snap.rstrip() == 'yes':
-                return True
-            elif snap.rstrip() == 'no':
-                return False
-        else:
-            return False
-
     def get_properties(self):
 
         # Does all of the properties at once - this way it can be threaded more efficiently
 
         # NOTE - This is probably best not hardcoded huh...
 
-        property_commands = ['zfs get -H -o value org.wit:retention {0}',
+        property_commands = ['zfs get -H -o value org.wit:backup {0}',
+                             'zfs get -H -o value org.wit:retention {0}',
                              'zfs get -H -o value org.wit:destinations {0}',
                              'zfs list -H -t snap -r {0} -o name']
 
@@ -63,21 +43,26 @@ class Dataset(object):
             for cmd in property_commands:
                 prop_out.append(utils.run_command(cmd.format(self.name)))
         except subprocess.CalledProcessError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
-        if prop_out[0].rstrip() != '-':
+        if prop_out[0].rstrip() == 'yes':
+            self.snapshot = True
+        else:
+            self.snapshot = False
+
+        if prop_out[1].rstrip() != '-':
             try:
-                schema = utils.sched_from_schema(prop_out[0].rstrip())
+                schema = utils.sched_from_schema(prop_out[1].rstrip())
                 self.retention = schema
             except ValueError as e:
-                self.log.error(e)
+                self.log.debug(e)
                 raise
         else:
             raise ValueError("Need retention for dataset{0}".format(self.name))
 
-        if prop_out[1].rstrip() != '-':
-            dst_list = utils.parse_destinations(prop_out[1].rstrip())
+        if prop_out[2].rstrip() != '-':
+            dst_list = utils.parse_destinations(prop_out[2].rstrip())
             if dst_list:
                 self.destinations = dst_list
             else:
@@ -85,8 +70,8 @@ class Dataset(object):
         else:
             self.log.debug("No destinations set for dataset {0}".format(self.name))
 
-        if len(prop_out) > 2:
-            for snap in prop_out[2].split():
+        if len(prop_out) > 3:
+            for snap in prop_out[3].split():
                 this_snap = snapshot.Snapshot(snap.rstrip())
                 self.snaplist.append(this_snap)
         else:
@@ -103,7 +88,7 @@ class Dataset(object):
             utils.run_command(command)
             self.log.debug("Snapshot completed successfully for {0}".format(self.name))
         except subprocess.CalledProcessError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
     

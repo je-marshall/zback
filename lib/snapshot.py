@@ -32,7 +32,7 @@ class Snapshot(object):
             for cmd in property_commands:
                 prop_out.append(utils.run_command(cmd.format(self.name)))
         except subprocess.CalledProcessError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
         date = prop_out[0].rstrip()
@@ -50,7 +50,7 @@ class Snapshot(object):
         try:
             parse_date = utils.date_from_string(date)
         except ValueError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
         self.date = parse_date
@@ -63,7 +63,7 @@ class Snapshot(object):
         try:
             reference = str(ref)
         except TypeError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
         command = 'zfs hold {0} {1}'.format(reference, self.name)
@@ -71,7 +71,7 @@ class Snapshot(object):
         try:
             hold_snap = utils.run_command(command)
         except subprocess.CalledProcessError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
         self.log.info("Hold {0} placed on snapshot {1}".format(reference, self.name))
@@ -84,7 +84,7 @@ class Snapshot(object):
         try:
             reference = str(ref)
         except TypeError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
         command = 'zfs release {0} {1}'.format(reference, self.name)
@@ -92,7 +92,7 @@ class Snapshot(object):
         try:
             unhold_snap = utils.run_command(command)
         except subprocess.CalledProcessError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
 
         self.log.info("Hold {0} removed on snapshot {1}".format(reference, self.name))
@@ -110,5 +110,5 @@ class Snapshot(object):
         try:
             utils.run_command(command)
         except subprocess.CalledProcessError as e:
-            self.log.error(e)
+            self.log.debug(e)
             raise
