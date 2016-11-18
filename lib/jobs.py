@@ -1,4 +1,5 @@
 from operator import itemgetter
+import parmiko
 import subprocess
 import logging
 import dataset
@@ -89,14 +90,14 @@ def snapshot(dataset):
 
     log.info("Snapshot run completed successfully for dataset {0}".format(dataset.name))
 
-def send(dataset, location):
+def send(dataset, location, ssh_config_file=None):
     '''
     Sends a snapshot to a location
     '''
     # Try to ssh into location, bail if any errors
     # Check if remote server is running
     # Ask for latest snapshot on remote end
-    # Open port forward, ask remote end to start receive process
+    # Request ssh forward from other side
     # Begin sending into local end of port forward
     # Confirm snapshot received on remote end 
 
@@ -107,36 +108,54 @@ def send(dataset, location):
     except ValueError:
         log.error("Could not refresh dataset properties for dataset {0}".format(dataset.name))
         raise RuntimeError("Error getting dataset properties")
-        
-    # NOTE - this bit will need to be revised now that snaps are not dicts
-    latest_local = sorted(dataset.snaplist, key=lambda x: x.date).pop()
 
-    split_loc = location.split(':')
-    if len(split_loc) == 1:
-        try:
-            check_cmd = 'zfs list -H -t snap -r {0} -o name'.format(location)
-            check = utils.run_command(check_cmd)
-        except subprocess.CalledProcessError:
-            log.error("Incorrectly configured destination for dataset {0}, {1}".format(
-                dataset.name, location))
-            raise RuntimeError("Bad config for destination")
+    ssh = paramiko.SSHClient()
+    ssh.load_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        latest_remote_unfmt = check.split().pop()
-        latest_remote = dataset.name + '@' + lateset_remote_unfmt.split('@')[1]
+    ssh_config = paramiko.SSHConfig()
 
-        if latest_local == latest_remote:
-            self.log.info("Destination {0} up to date")
-            return
+    if ssh_config_file is None:
+        with open('~/.ssh/config') as f:
+          ssh_config.parse(f)  
+    else:
+        ssh_config.parse(ssh_config_file)
+    
+    host_lookup = ssh_config.lookup(location.split(':')[0])
+    if len(host_lookup) == 1:
+        log.error("Host {0} not configured in ssh config file".format(location))
+        raise RuntimeError("Error with ssh config")
+    
+    try:
+        ssh.connect(host_lookup['hostname'], username=host_lookup['user'], port=host_lookup['port'])
+    except Exception as e:
+        log.error("Could not connect to remote host {0}".format(location))
+        log.debug(e)
+        raise
 
-        send_cmd = 'zfs send -i {0} {1}'.format(latest_remote, latest_local)
-        recv_cmd = 'zfs recv -F {0}'.format(location)
+    check_command = 'zfs list -H -t snap -r {0} -o name'.format(location.split(':')[1])
 
-        local_send(send_cmd, recv_cmd)
+    stdin, stdout, stderr = ssh.exec_command(check_command)
+    if not stderr.read():
+        latest_remote = stdout.read().split().pop()
+    else:
+        log.error("Error checking for remote snapshot")
+        log.debug(stderr.read())
+        raise RuntimeError("Could not check remote snapshot")
+    
+    # NOTE - need to figure out how to request the remote end to start an mbuffer
+    # And get a random port...
+    # That should go here ^^
 
-
-        
-
-
-    pass
-
-def local_send
+    transport = ssh.get_transport()
+    try:
+        channel = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
+    except paramiko.SSHException as e:
+        log.error("Could not open forwarding channel")
+        log.debug(e)
+        raise RuntimeError("Channel creation failed")
+    
+    try:
+        dataset.send(latest_remote, channel)
+    except RuntimeError:
+        raise

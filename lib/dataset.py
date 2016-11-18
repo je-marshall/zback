@@ -19,6 +19,7 @@ class Dataset(object):
         self.snaplist = None
         self.retention = None
         self.destinations = None
+        self.progress = None
         self.generic_get = 'zfs get -H -o value {0}:{1} {2}'
 
     def __getstate__(self):
@@ -91,7 +92,38 @@ class Dataset(object):
             self.log.debug(e)
             raise
 
-    
+    def send(self, latest_remote, channel):
+        '''
+        Sends the latest local snapshot through mbuffer to the remote end. If
+        port is specified mbuffer outputs to that port, assuming it will be tunneled
+        over and SSH connection.
+        '''
+
+        latest_local = sorted(self.snaplist, key=lambda x: x.date, reverse=True).pop()
+
+        if latest_local.name == latest_remote:
+            self.log.info("Remote snapshot up to date for dataset {0}".format(self.name))
+            return
+
+        send_cmd = 'zfs send -i {0} {1}'.format(latest_remote, latest_local.name)
+#        pipe_cmd = 'mbuffer'
+
+        send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
+#        pipe = subprocess.Popen(pipe_cmd.split(), stdin=send.stdout, stderr=subprocess.PIPE)
+
+        while send.returncode is None:
+            send.poll()
+            data = send.stdout.readline()
+            channel.send(data)
+
+        if send.returncode == 0:
+            channel.close()
+            return
+        else:
+            self.log.debug("Sending snapshot {0} failed with returncode {1}".format(
+                latest_local.name, send.returncode))
+            raise RuntimeError("Send failed")
+
     @staticmethod
     def get_datasets(return_all = False):
         '''

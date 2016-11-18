@@ -1,4 +1,5 @@
 import logging
+import paramiko
 import Queue
 import subprocess
 import dataset
@@ -16,29 +17,32 @@ class Server(object):
         self.config = config
         self.scheduler = BackgroundScheduler()
         self.log = logging.getLogger('witback.server')
+    
+    def receive_handler(self, port, dataset):
+        '''
+        Called when an incoming send request is detected and starts an 
+        mbuffer process on the designated port, then pipes the result into
+        a zfs receive command
+        '''
 
-    def add_jobs(self):
-        '''
-        Adds jobs to the scheduler - only prune tasks necessary
-        '''
+        zfs_cmd = 'zfs recv -F {0}'.format(dataset.name)
+        mbuf_cmd = 'mbuffer -L localhost:{0}'.format(port)
 
         try:
-            setlist = utils.refresh_properties()
-        except subprocess.CalledProcessError:
-            self.log.error("Could not get dataset list, check debug log")
-            raise RuntimeError("Could not get datasets")
-        except Queue.Empty:
-            self.log.error("No datasets found")
-            raise RuntimeError("Could not get datasets")
+            mbuf = subprocess.Popen(mbuf_cmd.split(), stdout=subprocess.PIPE)
+            zfs = subprocess.Popen(zfs_cmd.split(), stdin=mbuf.stdout)
 
-        for this_set in setlist:
-            if this_set.retention:
-                self.scheduler.add_job(jobs.prune,
-                                       'cron',
-                                       second=30,
-                                       minute=0,
-                                       args=[this_set]
-                                      )
-                self.log.info("Added prune job for dataset {0}".format(this_set.name))
+            while zfs.returncode is None:
+                zfs.poll()
+            if zfs.returncode == 0:
+                self.log.info("Successfully recevied snapshot for dataset {0}".format(dataset.name))
+            else:
+                self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+                raise RuntimeError("ZFS recv returned non-zero")
+        except subprocess.CalledProcessError as e:
+            self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+            self.log.debug(e)
+            raise RuntimeError("Mbuffer command failed")
+            
 
-    def 
+
