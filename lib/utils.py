@@ -32,7 +32,7 @@ def run_command(command):
     elif stdout:
         return stdout
     else:
-        return None
+        return
 
 
 

@@ -110,14 +110,14 @@ def send(dataset, location, ssh_config_file=None):
         raise RuntimeError("Error getting dataset properties")
 
     ssh = paramiko.SSHClient()
-    ssh.load_host_keys()
+    ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     ssh_config = paramiko.SSHConfig()
 
     if ssh_config_file is None:
         with open('~/.ssh/config') as f:
-          ssh_config.parse(f)  
+          ssh_config.parse(f)
     else:
         ssh_config.parse(ssh_config_file)
     
