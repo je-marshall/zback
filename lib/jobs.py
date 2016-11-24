@@ -1,5 +1,5 @@
 from operator import itemgetter
-import parmiko
+import paramiko
 import subprocess
 import logging
 import dataset
@@ -90,7 +90,7 @@ def snapshot(dataset):
 
     log.info("Snapshot run completed successfully for dataset {0}".format(dataset.name))
 
-def send(dataset, location, ssh_config_file=None):
+def send(dataset, location, config):
     '''
     Sends a snapshot to a location
     '''
@@ -115,11 +115,12 @@ def send(dataset, location, ssh_config_file=None):
 
     ssh_config = paramiko.SSHConfig()
 
-    if ssh_config_file is None:
+    if not config['ssh_config_file']:
         with open('~/.ssh/config') as f:
           ssh_config.parse(f)
     else:
-        ssh_config.parse(ssh_config_file)
+        with open(config['ssh_config_file']) as f:
+            ssh_config.parse(f)
     
     host_lookup = ssh_config.lookup(location.split(':')[0])
     if len(host_lookup) == 1:
@@ -135,17 +136,19 @@ def send(dataset, location, ssh_config_file=None):
 
     check_command = 'zfs list -H -t snap -r {0} -o name'.format(location.split(':')[1])
 
-    stdin, stdout, stderr = ssh.exec_command(check_command)
-    if not stderr.read():
-        latest_remote = stdout.read().split().pop()
+    c_stdin, c_stdout, c_stderr = ssh.exec_command(check_command)
+    err = c_stderr.read()
+    if not err():
+        latest_remote = c_stdout.read().split().pop()
     else:
         log.error("Error checking for remote snapshot")
-        log.debug(stderr.read())
+        log.debug(err)
         raise RuntimeError("Could not check remote snapshot")
-    
-    # NOTE - need to figure out how to request the remote end to start an mbuffer
-    # And get a random port...
-    # That should go here ^^
+
+    port_command = 'echo {0} | nc -U {1}'.format(location.split(':')[0], config['server_socket'])
+
+    p_stdin, p_stdout, p_stderr = ssh.exec_command(port_command)
+    port = int(p_stdout.read())
 
     transport = ssh.get_transport()
     try:

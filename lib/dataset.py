@@ -4,8 +4,6 @@ import logging
 import utils
 import snapshot
 
-PREFIX = None
-
 class Dataset(object):
     '''
     Dataset properties and operations
@@ -34,7 +32,7 @@ class Dataset(object):
 
         # NOTE - This is probably best not hardcoded huh...
 
-        property_commands = ['zfs get -H -o value org.wit:backup {0}',
+        property_commands = ['zfs get -H -o value org.wit:snapshot {0}',
                              'zfs get -H -o value org.wit:retention {0}',
                              'zfs get -H -o value org.wit:destinations {0}',
                              'zfs list -H -t snap -r {0} -o name']

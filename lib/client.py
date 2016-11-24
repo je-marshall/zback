@@ -1,5 +1,8 @@
 import logging
 import Queue
+import socket
+import pickle
+import os
 import subprocess
 import jobs
 import dataset
@@ -15,20 +18,13 @@ class Client(object):
     def __init__(self, config):
         self.config = config
         self.scheduler = BackgroundScheduler()
+        self.setlist = []
         self.log = logging.getLogger('witback.client')
     
     def add_jobs(self):
 
-        try:
-            setlist = utils.refresh_properties()
-        except subprocess.CalledProcessError:
-            self.log.error("Could not get dataset list, check debug log")
-            raise RuntimeError("Could not get datasets")
-        except Queue.Empty:
-            self.log.error("No datasets found")
-            raise RuntimeError("Could not get datasets")
 
-        for this_set in setlist:
+        for this_set in self.setlist:
             # Set up prune job if there is a retention specified
             if this_set.retention is not None:
                 self.scheduler.add_job(jobs.prune, 'cron', second=30, minute=0, args=[this_set])
@@ -107,9 +103,26 @@ class Client(object):
             else:
                 self.log.info("No destinations set for dataset {0}".format(this_set.name))
 
+        def current_state(self):
+            '''
+            Outputs a pickled current state
+            '''
+
+            output_list = []
+            jobs = self.scheduler.get_jobs()
+
+            for job in jobs:
+                output_list.append({'name' : job.name,
+                                   'next_run' : job.next_run_time,
+                                   'id' : job.id,
+                                   'args' : job.args })
+
+            return pickle.dumps(output_list, -1)
+
+
         def external_monitor(self, event):
             '''
-            Runs an external monitor program. This can be modified so long as it 
+            Runs an external monitor program. This can be modified so long as it
             can handle the output of this function, documented in the wiki
             '''
 
@@ -132,7 +145,7 @@ class Client(object):
                 )
 
                 utils.run_command(run_cmd)
-            
+
             except subprocess.CalledProcessError:
                 self.log.error("Error running monitor command: {0}".format(run_cmd))
             except Exception as e:
@@ -143,3 +156,50 @@ class Client(object):
             if event.traceback:
                 self.log.debug("Event traceback: {0}".format(event.traceback))
 
+        def start(self):
+            '''
+            Kicks off the scheduler and then binds to a local socket to answer requests
+            '''
+
+            try:
+                self.setlist = utils.refresh_properties()
+            except subprocess.CalledProcessError:
+                self.log.error("Could not get dataset list, check debug log")
+                raise RuntimeError("Could not get datasets")
+            except Queue.Empty:
+                self.log.error("No datasets found")
+                raise RuntimeError("Could not get datasets")
+
+            job_defaults = {'coalesce' : True, 'max_instances' : 1}
+            executors = {'default' : {'type' : 'threadpool', 'max_workers' : len(self.setlist)}}
+            self.scheduler.configure(job_defaults=job_defaults, executors=executors)
+
+            self.add_jobs()
+            self.scheduler.add_listener(self.external_monitor,
+                                        EVENT_JOB_ERROR | EVENT_JOB_EXECUTED | EVENT_JOB_MISSED)
+
+            self.scheduler.start()
+
+            sock = socket.socket(socket.AF_UNIX)
+            try:
+                os.unlink(self.config['client_socket'])
+            except OSError:
+                pass
+            
+            sock.bind(self.config['client_socket'])
+            sock.listen(5)
+
+            while True:
+                client, clientaddr = sock.accept()
+
+                try:
+                    data = client.recv(4096)
+                    fmt_data = data.rstrip()
+
+                    if fmt_data == 'status':
+                        client.sendall("{0}\n".format(self.current_state()))
+                except:
+                    continue
+                finally:
+                    client.close()
+                    

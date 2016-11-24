@@ -289,8 +289,8 @@ def snapshot_worker(snapshot_q):
             log.error("Error parsing date for snapshot {0}".format(this_snap.name))
             snapshot_q.task_done()
             continue
-
-        snapshot_q.task_done()
+        finally:
+            snapshot_q.task_done()
 
 def dataset_worker(dataset_q, snapshot_q):
     '''
@@ -308,12 +308,14 @@ def dataset_worker(dataset_q, snapshot_q):
             log.error("Invalid retention schema for dataset {0}".format(this_set.name))
             dataset_q.task_done()
             continue
+        except AttributeError:
+            log.debug("No snapshots for dataset {0}".format(this_set.name))
+            dataset_q.task_done()
+            continue
 
         if this_set.snaplist is not None:
             for snap in this_set.snaplist:
                 snapshot_q.put(snap)
-
-        dataset_q.task_done()
 
 def refresh_properties():
     '''
