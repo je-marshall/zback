@@ -17,6 +17,8 @@ def prune(dataset):
     # Need to refresh properties to get updated snaplist
     try:
         dataset.get_properties()
+        for snap in dataset.snaplist:
+            snap.get_properties()
     except ValueError:
         log.error("Could not refresh properties for dataset {0}".format(dataset.name))
         raise RuntimeError("Refresh properties fail")
@@ -43,7 +45,8 @@ def prune(dataset):
     # delete bin instead.
 
     # NOTE - this bit will need to be revised now that snaps are not dicts
-    for snap in sorted(dataset.snaplist, key=lambda x: x.date, reverse=True):
+    dataset.snaplist.sort(key=lambda item:item.date)
+    for snap in dataset.snaplist:
         if snap.date.hour == 00:
             if len(hours) < dataset.retention['hours']:
                 hours.append(snap)
@@ -57,6 +60,9 @@ def prune(dataset):
             hours.append(snap)
         if snap not in hours and snap not in days and snap not in weeks and snap not in months:
             snaps_to_delete.append(snap)
+
+    if not snaps_to_delete:
+        log.info("No snapshots to delete for dataset {0}".format(dataset.name))
 
     for snap in snaps_to_delete:
         try:
@@ -126,9 +132,10 @@ def send(dataset, location, config):
     if len(host_lookup) == 1:
         log.error("Host {0} not configured in ssh config file".format(location))
         raise RuntimeError("Error with ssh config")
-    
+
+    log.debug("Attempting to connect to host {0}".format(location))
     try:
-        ssh.connect(host_lookup['hostname'], username=host_lookup['user'], port=host_lookup['port'])
+        ssh.connect(host_lookup['hostname'], username=host_lookup['user'], port=int(host_lookup['port']))
     except Exception as e:
         log.error("Could not connect to remote host {0}".format(location))
         log.debug(e)
@@ -136,29 +143,46 @@ def send(dataset, location, config):
 
     check_command = 'zfs list -H -t snap -r {0} -o name'.format(location.split(':')[1])
 
+    log.debug("Checking for latest remote snapshot on host {0}".format(location))
     c_stdin, c_stdout, c_stderr = ssh.exec_command(check_command)
     err = c_stderr.read()
-    if not err():
-        latest_remote = c_stdout.read().split().pop()
+    if not err:
+        try:
+            latest_remote = c_stdout.read().split().pop()
+            log.debug("Latest snapshot {0} found on host {1}".format(latest_remote, location))
+        except IndexError:
+            log.error("No remote snapshots in location {0}".format(location))
     else:
         log.error("Error checking for remote snapshot")
         log.debug(err)
         raise RuntimeError("Could not check remote snapshot")
 
-    port_command = 'echo {0} | nc -U {1}'.format(location.split(':')[0], config['server_socket'])
+    port_command = 'echo {0} | nc -U {1}'.format(location.split(':')[1], config['server_socket'])
 
     p_stdin, p_stdout, p_stderr = ssh.exec_command(port_command)
-    port = int(p_stdout.read())
+    try:
+        port = int(p_stdout.read())
+        log.debug("Received port {0} from remote host {1}".format(port, location))
+    except ValueError as e:
+        log.error("Could not get remote port from host {0}".format(location.split(':')[0]))
+        log.debug(e)
+        raise
 
     transport = ssh.get_transport()
     try:
         channel = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
+        log.debug("Opened channel to remote host {0}".format(location))
     except paramiko.SSHException as e:
         log.error("Could not open forwarding channel")
         log.debug(e)
         raise RuntimeError("Channel creation failed")
+
+    latest_remote_fmt = "{0}@{1}".format(dataset.name, latest_remote.split("@")[1])
     
     try:
-        dataset.send(latest_remote, channel)
+        log.debug("Beginning send for remote host {0}".format(location))
+        dataset.send(latest_remote_fmt, channel)
     except RuntimeError:
         raise
+    finally:
+        ssh.close()

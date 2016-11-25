@@ -38,14 +38,17 @@ class Snapshot(object):
         date = prop_out[0].rstrip()
         tags = []
 
-        for unfmt_tag in prop_out[1].splitlines():
-            tags.append(unfmt_tag.split('\t')[1])
+        try:
+            for unfmt_tag in prop_out[1].splitlines():
+                tags.append(unfmt_tag.split('\t')[1])
 
-        if tags:
-            self.log.debug("Tags found for snapshot {0}: {1}".format(self.name, tags))
-            self.holds = tags
-        else:
-            self.log.debug("No tags found for snapshot {0}".format(self.name))
+            if tags:
+                self.log.debug("Tags found for snapshot {0}: {1}".format(self.name, tags))
+                self.holds = tags
+            else:
+                self.log.debug("No tags found for snapshot {0}".format(self.name))
+        except AttributeError:
+            self.log.debug("No tags for snapshot {0}".format(self.name))
 
         try:
             parse_date = utils.date_from_string(date)

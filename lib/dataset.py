@@ -14,7 +14,7 @@ class Dataset(object):
 
         self.name = name
         self.snapshot = None
-        self.snaplist = None
+        self.snaplist = []
         self.retention = None
         self.destinations = None
         self.progress = None
@@ -70,9 +70,11 @@ class Dataset(object):
             self.log.debug("No destinations set for dataset {0}".format(self.name))
 
         if len(prop_out) > 3:
-            for snap in prop_out[3].split():
-                this_snap = snapshot.Snapshot(snap.rstrip())
-                self.snaplist.append(this_snap)
+            if prop_out[3] is not None:
+                self.snaplist = []
+                for snap in prop_out[3].split():
+                    this_snap = snapshot.Snapshot(snap.rstrip())
+                    self.snaplist.append(this_snap)
         else:
             self.log.debug("No snapshots found for this dataset")
 
@@ -96,13 +98,17 @@ class Dataset(object):
         port is specified mbuffer outputs to that port, assuming it will be tunneled
         over and SSH connection.
         '''
-
-        latest_local = sorted(self.snaplist, key=lambda x: x.date, reverse=True).pop()
+        try:
+            self.snaplist.sort(key=lambda item:item.date)
+            latest_local = self.snaplist.pop()
+        except:
+            self.log.error("Could not get latest local snapshot for dataset {0}".format(self.name))
+            raise
 
         if latest_local.name == latest_remote:
             self.log.info("Remote snapshot up to date for dataset {0}".format(self.name))
             return
-
+        
         send_cmd = 'zfs send -i {0} {1}'.format(latest_remote, latest_local.name)
 #        pipe_cmd = 'mbuffer'
 
@@ -111,8 +117,8 @@ class Dataset(object):
 
         while send.returncode is None:
             send.poll()
-            data = send.stdout.readline()
-            channel.send(data)
+            for line in send.stdout:
+                channel.send(line)
 
         if send.returncode == 0:
             channel.close()

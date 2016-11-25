@@ -70,7 +70,7 @@ def name_from_date(date):
 
     return name
 
-def date_from_string(string):
+def date_from_string(date_string):
     '''
         Takes a ZFS string date output and converts it to a datetime object
     '''
@@ -78,7 +78,7 @@ def date_from_string(string):
     log = logging.getLogger('zback.utils')
     fmt_string = '%a %b %d %H:%M %Y'
     try:
-        date = datetime.datetime.strptime(string, fmt_string)
+        date = datetime.datetime.strptime(date_string, fmt_string)
     except ValueError as e:
         log.debug("Timestamp format incorrect: {0}".format(string))
         log.debug(e)
@@ -236,17 +236,16 @@ def read_status(config):
     '''
 
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    address = "{0}/zback.sock".format(config['run_dir'])
+    address = config['client_socket']
 
     try:
         sock.connect(address)
     except socket.error as e:
         return False
 
-    send_d = ['status']
-    pick_d = pickle.dumps(send_d)
+    send_d = 'status'
 
-    sock.send(pick_d)
+    sock.send(send_d)
 
     data = ""
     part = None
@@ -306,12 +305,12 @@ def dataset_worker(dataset_q, snapshot_q):
             this_set.get_properties()
         except ValueError:
             log.error("Invalid retention schema for dataset {0}".format(this_set.name))
-            dataset_q.task_done()
             continue
         except AttributeError:
             log.debug("No snapshots for dataset {0}".format(this_set.name))
-            dataset_q.task_done()
             continue
+        finally:
+            dataset_q.task_done()
 
         if this_set.snaplist is not None:
             for snap in this_set.snaplist:
@@ -321,6 +320,13 @@ def refresh_properties():
     '''
     Refreshes dataset and snapshot properties using threading for speed
     '''
+
+    # This is fucking annoying - strptime not imported in a thread 
+    # safe manner, see http://bugs.python.org/issue7980
+    try:
+        date_from_string("Stupid python")
+    except:
+        pass
 
     log = logging.getLogger('witback.utils')
     dataset_q = Queue.Queue()

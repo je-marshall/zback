@@ -25,7 +25,6 @@ class Server(object):
         mbuffer process on the designated port, then pipes the result into
         a zfs receive command
         '''
-        self.log.debug("Inside receive handler")
         task = {'dataset' : dataset.name, 'port' : port, 'progress' : ''}
         self.current_tasks.append(task)
 
@@ -40,8 +39,13 @@ class Server(object):
         except subprocess.CalledProcessError as e:
             self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
             self.log.debug(e)
-            raise RuntimeError("Mbuffer command failed")
             self.current_tasks.remove(task)
+            try:
+                pipe.kill()
+                recv.kill()
+            except:
+                pass
+            raise RuntimeError("Mbuffer command failed")
 
         while recv.returncode is None:
             recv.poll()

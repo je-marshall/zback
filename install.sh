@@ -31,7 +31,8 @@ echo -e "\n"
 
 # Figure this may as well be done, doesn't take long and ensures the thing is
 # actually installed without having to do laborious checks
-apt-get update && apt-get install -y python python-setuptools pv mbuffer build-essential libssl-dev libffi-dev python-dev
+apt-get update && apt-get install -y python python-setuptools pv mbuffer \
+build-essential libssl-dev libffi-dev python-dev netcat-openbsd
 
 echo -e "\n"
 echo "----------------------------------------------------------------------"
