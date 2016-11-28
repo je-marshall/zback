@@ -37,7 +37,7 @@ class Server(object):
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
         except subprocess.CalledProcessError as e:
-            self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+            self.log.error("Error starting receive subprocess for dataset {0}".format(dataset.name))
             self.log.debug(e)
             self.current_tasks.remove(task)
             try:
