@@ -57,7 +57,6 @@ class Server(object):
             self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
             self.log.debug(recv.returncode)
             self.current_tasks.remove(task)
-        self.log.info("Receive beginning for dataset {0}".format(dataset.name))
 
     def stop(self):
         self.running = False
