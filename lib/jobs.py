@@ -186,7 +186,7 @@ def send(dataset, location, config):
     
     try:
         log.debug("Beginning send for remote host {0}".format(location))
-        dataset.send(latest_remote_fmt, channel)
+        dataset.send(latest_remote_fmt, channel, location)
     except RuntimeError:
         raise
     finally:

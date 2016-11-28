@@ -92,7 +92,7 @@ class Dataset(object):
             self.log.debug(e)
             raise
 
-    def send(self, latest_remote, channel):
+    def send(self, latest_remote, channel, ref):
         '''
         Sends the latest local snapshot through mbuffer to the remote end. If
         port is specified mbuffer outputs to that port, assuming it will be tunneled
@@ -127,6 +127,26 @@ class Dataset(object):
             self.log.debug("Sending snapshot {0} failed with returncode {1}".format(
                 latest_local.name, send.returncode))
             raise RuntimeError("Send failed")
+
+        # If snapshot sent successfully, put a hold on it
+        try:
+            latest_local.hold(ref)
+        except TypeError:
+            self.log.warning("Could not hold snapshot {0}".format(latest_local.name))
+        except subprocess.CalledProcessError:
+            self.log.warning("Could not hold snapshot {0}".format(latest_local.name))
+        
+       # Remove any hold with this ref on it for any other snapshot
+
+        held_snaps = [snap for snap in self.snaplist if snap.holds is not None]
+        for snap in held_snaps:
+            if ref in snap.holds:
+                try:
+                    snap.unhold(ref)
+                except:
+                    self.log.warning("Could not unhold snapshot {0}".format(snap.name))
+
+
 
     @staticmethod
     def get_datasets(return_all = False):
