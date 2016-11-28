@@ -229,7 +229,7 @@ def parse_config(config_file, defaults):
 
     return config_return
 
-def read_status(socket):
+def read_status(socket_path):
     '''
     Opens a connection to the status output socket and parses what is in
     there via pickle to return a list of objects
@@ -238,7 +238,7 @@ def read_status(socket):
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
     try:
-        sock.connect(socket)
+        sock.connect(socket_path)
     except socket.error as e:
         return False
 
