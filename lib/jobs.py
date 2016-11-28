@@ -2,6 +2,7 @@ from operator import itemgetter
 import paramiko
 import subprocess
 import logging
+import time
 import dataset
 import paramiko
 import utils
@@ -167,6 +168,10 @@ def send(dataset, location, config):
         log.error("Could not get remote port from host {0}".format(location.split(':')[0]))
         log.debug(e)
         raise
+    
+    # Wonder if this is why the channel create fails - the listen command hasn't had
+    # time to bind to the port
+    time.sleep(5)
 
     transport = ssh.get_transport()
     try:
