@@ -28,7 +28,7 @@ class Server(object):
         task = {'dataset' : dataset.name, 'port' : port, 'progress' : ''}
         self.current_tasks.append(task)
 
-        pipe_cmd = 'mbuffer -I localhost:{0}'.format(port)
+        pipe_cmd = 'mbuffer -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
