@@ -171,7 +171,7 @@ def send(dataset, location, config):
     
     # Wonder if this is why the channel create fails - the listen command hasn't had
     # time to bind to the port
-    time.sleep(5)
+    time.sleep(2)
 
     transport = ssh.get_transport()
     try:
