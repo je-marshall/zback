@@ -17,6 +17,7 @@ class Server(object):
         self.running = False
         self.config = config
         self.current_tasks = []
+        self.sock = socket.socket(socket.AF_UNIX)
         self.log = logging.getLogger('witback.server')
     
     def receive_handler(self, port, dataset):
@@ -59,7 +60,9 @@ class Server(object):
             self.current_tasks.remove(task)
 
     def stop(self):
+        self.log.info("Received exit signal, shutting down...")
         self.running = False
+        self.sock.close()
 
     def start(self):
         '''
@@ -68,20 +71,19 @@ class Server(object):
 
         datasets = dataset.Dataset.get_datasets()
 
-        sock = socket.socket(socket.AF_UNIX)
         # try:
         #     os.unlink(self.config['server_socket'])
         # except OSError as e:
         #     self.log.error("Could not bind to local socket, server in use?")
         #     self.log.debug(e)
 
-        sock.bind(self.config['server_socket'])
-        sock.listen(5)
+        self.sock.bind(self.config['server_socket'])
+        self.sock.listen(5)
 
         self.running = True
 
         while self.running:
-            client, clientaddr = sock.accept()
+            client, clientaddr = self.sock.accept()
             try:
                 data = client.recv(4096)
                 self.log.debug(data)
@@ -105,6 +107,9 @@ class Server(object):
 
                 if fmt_data == 'status':
                     client.sendall("{0}\n".format(pickle.dumps(self.current_tasks, -1)))
+
+                if fmt_data == 'stop':
+                    self.stop()
             except:
                 continue 
             finally:
