@@ -45,7 +45,7 @@ def prune(dataset):
     # delete bin instead.
 
     # NOTE - this bit will need to be revised now that snaps are not dicts
-    dataset.snaplist.sort(key=lambda item:item.date reverse=True)
+    dataset.snaplist.sort(key=lambda item:item.date, reverse=True)
     for snap in dataset.snaplist:
         if snap.date.hour == 00:
             if len(hours) < dataset.retention['hours']:
