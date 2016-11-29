@@ -15,7 +15,7 @@
 # export PS4='+${BASH_SOURCE}:${LINENO}:${FUNCNAME[0]}: '
 #
 
-ZDIR=/srv/witback/
+ZDIR=$(pwd)
 
 echo -e "\n"
 echo "----------------------------------------------------------------------"
@@ -70,19 +70,7 @@ echo "----------------------------------------------------------------------"
 #$ZDIR/env/bin/python $ZDIR/zback/configure.py 
 
 echo -e "\n"
-read -p "Create symlinks in /usr/bin and /etc/init.d? [y/N]: " yn
-
-case $yn in 
-	[yY][eE][sS][yY])
-		ln -sv $ZDIR/bin/zback /usr/bin/zback
-		# Not using this until init script is sorted
-		# ln -sv $ZDIR/bin/zback-init /etc/init.d/zback
-	;;
-	*)
-		:
-	;;
-esac
-
+$ZDIR/env/bin/python setup.py install
 
 echo -e "\n"
 echo "----------------------------------------------------------------------"

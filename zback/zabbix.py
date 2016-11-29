@@ -1,12 +1,11 @@
-#!/srv/zback/env/bin/python
-
 import sys
 import os
-from ..zback import zfs, sender, helpers, run
-
 import json
 import argparse
 import logging
+import dataset
+import utils
+
 
 DESC = "SOME TEXT"
 
@@ -23,7 +22,7 @@ def main():
 
     # This bit just uses the default config for run dir. Would be nice to be
     # able to get it to respect whatever config is being used.
-    jobs = helpers.read_status(run.DEFAULT_CFG)
+    jobs = utils.read_status(DEFAULT_CFG)
 
     log = logging.getLogger('zback')
     hndl = logging.NullHandler()
@@ -48,7 +47,7 @@ def snap(snap_list):
 
     for job in snap_list:
         for arg in job['args']:
-            if isinstance(arg, zfs.Dataset):
+            if isinstance(arg, dataset.Dataset):
                 format_list.append({'{#DSNAME}' : arg.name})
 
     format_json(format_list)
@@ -61,7 +60,7 @@ def prune(prune_list):
 
     for job in prune_list:
         for arg in job['args']:
-            if isinstance(arg, zfs.Dataset):
+            if isinstance(arg, dataset.Dataset):
                 format_list.append({'{#DSNAME}' : arg.name})
 
     format_json(format_list)
@@ -78,9 +77,9 @@ def send(send_list):
     for job in send_list:
         this_job = []
         for arg in job['args']:
-            if isinstance(arg, zfs.Dataset):
+            if isinstance(arg, dataset.Dataset):
                 this_job.append({'{#DSNAME}' : arg.name})
-            elif isinstance(arg, sender.Location):
+            else:
                 this_job.append({'{#DSLOC}' : arg.location})
         
         if this_job:
