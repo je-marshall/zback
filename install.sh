@@ -72,6 +72,8 @@ echo "----------------------------------------------------------------------"
 echo -e "\n"
 $ZDIR/env/bin/python setup.py install
 
+sed -i '1s/^/$ZDIR/env/bin/python /' $ZDIR/bin/zback
+
 echo -e "\n"
 echo "----------------------------------------------------------------------"
 echo "                       	 Setup complete"
