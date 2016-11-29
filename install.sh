@@ -72,7 +72,9 @@ echo "----------------------------------------------------------------------"
 echo -e "\n"
 $ZDIR/env/bin/python setup.py install
 
-sed -i '1s/^/$ZDIR/env/bin/python /' $ZDIR/bin/zback
+# Some arcane sedding to get the current path into the first line of the 
+# executable file
+sed -i -e '1i\#\!'$ZDIR'\/env\/bin\/python' $ZDIR/bin/zback
 
 echo -e "\n"
 echo "----------------------------------------------------------------------"
