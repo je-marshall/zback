@@ -1,4 +1,4 @@
-#!/srv/scripts/zback/env/bin/python
+#!/srv/zback/env/bin/python
 
 import sys
 import os
