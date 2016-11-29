@@ -109,13 +109,13 @@ class Client(object):
         '''
 
         output_list = []
-        jobs = self.scheduler.get_jobs()
+        job_list = self.scheduler.get_jobs()
 
-        for job in jobs:
+        for job in job_list:
             output_list.append({'name' : job.name,
                                 'next_run' : job.next_run_time,
                                 'id' : job.id,
-                                'args' : job.args })
+                                'args' : job.args})
 
         return pickle.dumps(output_list, -1)
 

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Sends error information to zabbix
+
+ZBX_SEND=/usr/bin/zabbix_sender
+ZBX_CFG=/etc/zabbix/zabbix_agentd.conf
+
+EVENT_CODE=$1
+DATASET=$3
+
+# Format the job name correctly to correspond to the key
+case $2 in
+	send_job)
+	JOB_NAME="send"
+	;;
+	prune_job)
+	JOB_NAME="prune"
+	;;
+	backup_job)
+	JOB_NAME="snap"
+	;;
+esac
+
+# Check if a location has been passed
+if [ $# -eq 4 ]
+then
+	ZBX_KEY="zback.$JOB_NAME.[$DATASET,$4]"
+else
+	ZBX_KEY="zback.$JOB_NAME.[$DATASET]"
+fi
+
+$ZBX_SEND -c $ZBX_CFG -k $ZBX_KEY -o $EVENT_CODE

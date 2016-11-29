@@ -128,6 +128,8 @@ class Dataset(object):
                 latest_local.name, send.returncode))
             raise RuntimeError("Send failed")
 
+        self.log.info("Send successful for dataset {0}".format(self.name))
+
         # If snapshot sent successfully, put a hold on it
         try:
             latest_local.hold(ref)
