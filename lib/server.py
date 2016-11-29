@@ -60,7 +60,7 @@ class Server(object):
             self.current_tasks.remove(task)
 
     def stop(self):
-        self.log.info("Received exit signal, shutting down...")
+        self.log.info('Received exit signal, shutting down... \n')
         self.running = False
         self.sock.close()
 
