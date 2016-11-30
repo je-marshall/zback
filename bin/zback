@@ -1,3 +1,21 @@
+#!/bin/bash
 
-# Leave the top line blank as it gets filled in when
-# the install script runs to use the full path
+# Script to handle calling zback and its various functions
+
+ZDIR=/srv/zback
+MANAGER=$ZDIR/zback/manager.py
+ZBX=$ZDIR/zback/zabbix.py
+PY=$ZIDR/env/bin/python
+
+
+case $1 in
+    client)
+    $PY $MANAGER $1 $2
+    ;;
+    server)
+    $PY $MANAGER $1 $2
+    ;;
+    zabbix)
+    $PY $ZBX $2
+    ;;
+esac
