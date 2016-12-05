@@ -49,7 +49,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 pass
             raise
         
-        self.request.sendall(port)
+        self.request.sendall(str(port)
 
         while recv.returncode is None:
             recv.poll()
