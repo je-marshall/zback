@@ -15,15 +15,21 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         # self.request.sendall(response)
 
     def handle(self):
+        datasets = dataset.Dataset.get_datasets()
+        log = logging.getLogger('zback.server')
         data = self.request.recv(4096)
         fmt_data = str(data.rstrip())
 
-        this_dataset = [ds for ds in self.datasets if ds.name == fmt_data][0]
+        log.info("Incoming request")
+
+        this_dataset = [ds for ds in datasets if ds.name == fmt_data][0]
         if this_dataset:
             this_port = utils.get_open_port()
             self.receive(this_port, this_dataset)
 
     def receive(self, port, dataset):
+
+        log = logging.getLogger("zback.server")
 
         pipe_cmd = 'mbuffer -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
@@ -34,8 +40,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
         except subprocess.CalledProcessError as e:
-            self.log.error("Error starting receive process for dataset {0}".format(dataset.name))
-            self.log.debug(e)
+            log.error("Error starting receive process for dataset {0}".format(dataset.name))
+            log.debug(e)
             try:
                 pipe.kill()
                 recv.kill()
@@ -48,18 +54,19 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         while recv.returncode is None:
             recv.poll()
         if recv.returncode == 0:
-            self.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
+            log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
-            self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
-            self.log.debug(recv.returncode)
+            log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+            log.debug(recv.returncode)
 
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
 
-    def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
-        self.log = logging.getLogger('zback.server')
-        self.datasets = dataset.Dataset.get_datasets()
-        SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=True)
+    # def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
+    #     self.log = logging.getLogger('zback.server')
+    #     self.datasets = dataset.Dataset.get_datasets()
+    #     SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=True)
 
 
 if __name__ == '__main__':
