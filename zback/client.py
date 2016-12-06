@@ -1,5 +1,6 @@
 import logging
 import Queue
+import SocketServer
 import socket
 import pickle
 import os
@@ -10,7 +11,13 @@ import utils
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
-class Client(object):
+class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
+    pass
+
+class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
+
+class ZbackClient(object):
     '''
     Handles scheduling of snapshot and prune tasks as well as sending
     '''
