@@ -43,6 +43,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         self.log = logging.getLogger("zback.server")
 
+        self.log.info("Receiving stream for dataset {0}".format(dataset.name))
+
         pipe_cmd = 'mbuffer -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
@@ -51,8 +53,11 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                                     stderr=subprocess.PIPE)
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
+            self.log.debug("Started pipe process {0} with pid {1}".format(pipe_cmd, pipe.pid))
+            self.log.debug("Started receive process {0} with pid {1}".format(recv_cmd, recv.pid))
+
         except subprocess.CalledProcessError as e:
-            self.server.log.error("Error starting receive process for dataset {0}".format(dataset.name))
+            self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
             self.server.log.debug(e)
             try:
                 pipe.kill()
