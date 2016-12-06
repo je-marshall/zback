@@ -102,6 +102,8 @@ class ZbackServer(object):
         server.datasets = datasets
         server.log = self.log
 
-        server_thread = threading.Thread(target=server.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
+        # server_thread = threading.Thread(target=server.serve_forever)
+        # server_thread.daemon = True
+        # server_thread.start()
+
+        server.serve_forever()
