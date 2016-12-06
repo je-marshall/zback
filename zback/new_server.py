@@ -24,13 +24,14 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         self.server.log.info("Incoming request")
 
-        this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
-        if this_dataset:
-            this_port = utils.get_open_port()
-            self.receive(this_port, this_dataset)
-        elif fmt_data == 'shutdown':
-            self.server.log.info("Received shutdown command")
-            self.server.shutdown()
+        if fmt_data:
+            this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
+            if this_dataset:
+                this_port = utils.get_open_port()
+                self.receive(this_port, this_dataset)
+            elif fmt_data == 'shutdown':
+                self.server.log.info("Received shutdown command")
+                self.server.shutdown()
 
     def receive(self, port, dataset):
 
