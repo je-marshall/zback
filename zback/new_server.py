@@ -3,6 +3,7 @@ import threading
 import Queue
 import SocketServer
 import pickle
+import time
 import sys
 import os
 import subprocess
@@ -80,11 +81,6 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
 
-    # def __init__(self, server_address, RequestHandlerClass, bind_and_activate=True):
-    #     self.log = logging.getLogger('zback.server')
-    #     self.datasets = dataset.Dataset.get_datasets()
-    #     SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=True)
-
 class ZbackServer(object):
     '''
     Main server class, does prep and handles reloads
@@ -128,8 +124,12 @@ class ZbackServer(object):
         self.refresh_setlist()
         self.server.log = self.log
 
-        # server_thread = threading.Thread(target=server.serve_forever)
-        # server_thread.daemon = True
-        # server_thread.start()
+        server_thread = threading.Thread(target=self.server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
 
-        self.server.serve_forever()
+        while server_thread.isAlive:
+            time.sleep(60)
+
+        self.log.info("Shutting down")
+        sys.exit(1)
