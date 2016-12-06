@@ -34,7 +34,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 self.server.log.debug("Non dataset request")
             if fmt_data == 'shutdown':
                 self.server.log.info("Received shutdown command")
-                self.server.server_shutdown()
+                self.server.server_close()
 
     def receive(self, port, dataset):
 
