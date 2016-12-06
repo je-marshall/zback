@@ -25,7 +25,10 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         self.server.log.info("Incoming request")
 
         if fmt_data:
-            this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
+            try:
+                this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
+            except IndexError:
+                self.server.log.debug("Non dataset request")
             if this_dataset:
                 this_port = utils.get_open_port()
                 self.receive(this_port, this_dataset)
