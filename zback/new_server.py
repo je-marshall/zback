@@ -27,12 +27,12 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         if fmt_data:
             try:
                 this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
+                if this_dataset:
+                    this_port = utils.get_open_port()
+                    self.receive(this_port, this_dataset)
             except IndexError:
                 self.server.log.debug("Non dataset request")
-            if this_dataset:
-                this_port = utils.get_open_port()
-                self.receive(this_port, this_dataset)
-            elif fmt_data == 'shutdown':
+            if fmt_data == 'shutdown':
                 self.server.log.info("Received shutdown command")
                 self.server.shutdown()
 
