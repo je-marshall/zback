@@ -2,6 +2,8 @@ import socket
 import threading
 import SocketServer
 import pickle
+import sys
+import os
 import subprocess
 import logging
 import dataset
@@ -15,49 +17,52 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         # self.request.sendall(response)
 
     def handle(self):
-        datasets = dataset.Dataset.get_datasets()
-        log = logging.getLogger('zback.server')
         data = self.request.recv(4096)
+        
+        # Ideally this would be a pickle, for more advanced requests
         fmt_data = str(data.rstrip())
 
-        log.info("Incoming request")
+        self.log.info("Incoming request")
 
-        this_dataset = [ds for ds in datasets if ds.name == fmt_data][0]
+        this_dataset = [ds for ds in self.datasets if ds.name == fmt_data][0]
         if this_dataset:
             this_port = utils.get_open_port()
             self.receive(this_port, this_dataset)
+        elif fmt_data == 'shutdown':
+            self.log.info("Received shutdown command")
+            self.server.shutdown()
 
     def receive(self, port, dataset):
 
-        log = logging.getLogger("zback.server")
+        self.log = logging.getLogger("zback.server")
 
         pipe_cmd = 'mbuffer -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
-            pipe = subprocess.Popen(pipe_cmd.split(), stdout = subprocess.PIPE,
+            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE)
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
         except subprocess.CalledProcessError as e:
-            log.error("Error starting receive process for dataset {0}".format(dataset.name))
-            log.debug(e)
+            self.log.error("Error starting receive process for dataset {0}".format(dataset.name))
+            self.log.debug(e)
             try:
                 pipe.kill()
                 recv.kill()
             except:
                 pass
             raise
-        
+
         self.request.sendall(str(port))
 
         while recv.returncode is None:
             recv.poll()
         if recv.returncode == 0:
-            log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
+            self.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
-            log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
-            log.debug(recv.returncode)
+            self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+            self.log.debug(recv.returncode)
 
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
@@ -68,11 +73,35 @@ class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     #     self.datasets = dataset.Dataset.get_datasets()
     #     SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=True)
 
+class ZbackServer(object):
+    '''
+    Main server class, does prep and handles reloads
+    '''
 
-if __name__ == '__main__':
+    def __init__(self, config):
+        self.config = config
+        self.log = logging.getLogger('zback.server')
 
-    HOST, PORT = "127.0.0.1", 5230
-    server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
-    server_thread = threading.Thread(target = server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
+    def start(self):
+        '''
+        Starts the server, unless it is already running
+        '''
+        srv_host = self.config['server_addr']
+        srv_port = self.config['server_port']
+
+        try:
+            datasets = dataset.Dataset.get_datasets()
+        except subprocess.CalledProcessError:
+            self.log.error("ZFS not installed, exiting")
+            sys.exit(1)
+        except RuntimeError:
+            self.log.error("No ZFS datasets found, exiting")
+            sys.exit(1)
+
+        server = ThreadedTCPServer((srv_host, srv_port), ThreadedTCPRequestHandler)
+        server.datasets = datasets
+        server.log = self.log
+
+        server_thread = threading.Thread(target=server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
