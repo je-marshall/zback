@@ -1,5 +1,6 @@
 import socket
 import threading
+import Queue
 import SocketServer
 import pickle
 import sys
@@ -8,6 +9,8 @@ import subprocess
 import logging
 import dataset
 import utils
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
 class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         # def handle(self):
@@ -85,6 +88,24 @@ class ZbackServer(object):
     def __init__(self, config):
         self.config = config
         self.log = logging.getLogger('zback.server')
+        self.scheduler = BackgroundScheduler()
+        self.server = None
+
+    def refresh_setlist(self):
+        '''
+        Refreshes the setlist and pushes it to the SocketServer 
+        '''
+        try:
+            setlist = utils.refresh_properties()
+        except subprocess.CalledProcessError:
+            self.log.error("Error querying datasets")
+            sys.exit(1)
+        except Queue.Empty:
+            self.log.error("Could not find any datasets, check ZFS installed and sets configured")
+            sys.exit(1)
+        
+        self.server.datasets = setlist
+
 
     def start(self):
         '''
@@ -93,21 +114,17 @@ class ZbackServer(object):
         srv_host = self.config['server_addr']
         srv_port = self.config['server_port']
 
-        try:
-            datasets = dataset.Dataset.get_datasets()
-        except subprocess.CalledProcessError:
-            self.log.error("ZFS not installed, exiting")
-            sys.exit(1)
-        except RuntimeError:
-            self.log.error("No ZFS datasets found, exiting")
-            sys.exit(1)
+        # Set up the scheduler to periocially query the current dataset list
 
-        server = ThreadedTCPServer((srv_host, srv_port), ThreadedTCPRequestHandler)
-        server.datasets = datasets
-        server.log = self.log
+        self.scheduler.add_job(self.refresh_setlist, 'cron', second=0)
+        self.scheduler.start()
+
+        self.server = ThreadedTCPServer((srv_host, srv_port), ThreadedTCPRequestHandler)
+        self.refresh_setlist()
+        self.server.log = self.log
 
         # server_thread = threading.Thread(target=server.serve_forever)
         # server_thread.daemon = True
         # server_thread.start()
 
-        server.serve_forever()
+        self.server.serve_forever()
