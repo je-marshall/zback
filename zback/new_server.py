@@ -22,14 +22,14 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         # Ideally this would be a pickle, for more advanced requests
         fmt_data = str(data.rstrip())
 
-        self.log.info("Incoming request")
+        self.server.log.info("Incoming request")
 
-        this_dataset = [ds for ds in self.datasets if ds.name == fmt_data][0]
+        this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
         if this_dataset:
             this_port = utils.get_open_port()
             self.receive(this_port, this_dataset)
         elif fmt_data == 'shutdown':
-            self.log.info("Received shutdown command")
+            self.server.log.info("Received shutdown command")
             self.server.shutdown()
 
     def receive(self, port, dataset):
@@ -45,8 +45,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
         except subprocess.CalledProcessError as e:
-            self.log.error("Error starting receive process for dataset {0}".format(dataset.name))
-            self.log.debug(e)
+            self.server.log.error("Error starting receive process for dataset {0}".format(dataset.name))
+            self.server.log.debug(e)
             try:
                 pipe.kill()
                 recv.kill()
@@ -59,10 +59,10 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         while recv.returncode is None:
             recv.poll()
         if recv.returncode == 0:
-            self.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
+            self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
-            self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
-            self.log.debug(recv.returncode)
+            self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+            self.server.log.debug(recv.returncode)
 
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
