@@ -158,35 +158,38 @@ def send(dataset, location, config):
         log.debug(err)
         raise RuntimeError("Could not check remote snapshot")
 
-    port_command = 'echo {0} | nc -U {1}'.format(location.split(':')[1], config['server_socket'])
-
-    p_stdin, p_stdout, p_stderr = ssh.exec_command(port_command)
-    try:
-        port = int(p_stdout.read())
-        log.debug("Received port {0} from remote host {1}".format(port, location))
-    except ValueError as e:
-        log.error("Could not get remote port from host {0}".format(location.split(':')[0]))
-        log.debug(e)
-        raise
-    
-    # Wonder if this is why the channel create fails - the listen command hasn't had
-    # time to bind to the port
-    time.sleep(5)
-
     transport = ssh.get_transport()
+
     try:
-        channel = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
+        req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', config['server_port']),
+                                          src_addr=('', 0))
+        log.debug("Opened channel to remote host {0}, requesting receive process".format(location))
+        req_chan.sendall(location.split(':')[1])
+        data = req_chan.recv(4096)
+        try:
+            port = int(data.rstrip())
+        except:
+            log.error("Error getting port for remote receive process, aborting")
+            log.debug("Received: {0}".format(data))
+            raise RuntimeError("Remote receive failed")
+    except paramiko.SSHException as e:
+        log.error("Failed to open forwarding channel to remote host {0}".format(location))
+        log.debug(e)
+        raise RuntimeError("Channel open failed")
+
+    try:
+        forward_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
         log.debug("Opened channel to remote host {0}".format(location))
     except paramiko.SSHException as e:
-        log.error("Could not open forwarding channel")
+        log.error("Failed to open forwarding channel to remote host {0}".format(location))
         log.debug(e)
-        raise RuntimeError("Channel creation failed")
+        raise RuntimeError("Channel open failed")
 
     latest_remote_fmt = "{0}@{1}".format(dataset.name, latest_remote.split("@")[1])
     
     try:
         log.debug("Beginning send for remote host {0}".format(location))
-        dataset.send(latest_remote_fmt, channel, location)
+        dataset.send(latest_remote_fmt, forward_chan, location)
     except RuntimeError:
         raise
     finally:
