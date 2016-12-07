@@ -7,28 +7,28 @@ import dataset
 import paramiko
 import utils
 
-def prune(dataset):
+def prune(this_set):
     '''
     Deletes all unneeded snapshots
     '''
 
-    log = logging.getLogger('zback.prune')
-    log.debug("Beginning prune on dataset {0}".format(dataset.name))
+    log = logging.getLogger('witback.prune')
+    log.debug("Beginning prune on dataset {0}".format(this_set.name))
 
     # Need to refresh properties to get updated snaplist
     try:
-        dataset.get_properties()
-        for snap in dataset.snaplist:
+        this_set.get_properties()
+        for snap in this_set.snaplist:
             snap.get_properties()
     except ValueError:
-        log.error("Could not refresh properties for dataset {0}".format(dataset.name))
+        log.error("Could not refresh properties for dataset {0}".format(this_set.name))
         raise RuntimeError("Refresh properties fail")
 
-    if dataset.snaplist is None:
-        log.error("No snapshots for dataset {0}, abandoning prune job".format(dataset.name))
+    if this_set.snaplist is None:
+        log.error("No snapshots for dataset {0}, abandoning prune job".format(this_set.name))
         raise RuntimeError("Missing snapshot list")
-    elif dataset.retention is None:
-        log.error("No retention for dataset {0}, abdandoning prune job".format(dataset.name))
+    elif this_set.retention is None:
+        log.error("No retention for dataset {0}, abdandoning prune job".format(this_set.name))
         raise RuntimeError("Missing retention") 
 
 
@@ -46,24 +46,24 @@ def prune(dataset):
     # delete bin instead.
 
     # NOTE - this bit will need to be revised now that snaps are not dicts
-    dataset.snaplist.sort(key=lambda item:item.date, reverse=True)
-    for snap in dataset.snaplist:
+    this_set.snaplist.sort(key=lambda item:item.date, reverse=True)
+    for snap in this_set.snaplist:
         if snap.date.hour == 00:
-            if len(hours) < dataset.retention['hours']:
+            if len(hours) < this_set.retention['hours']:
                 hours.append(snap)
-            if len(days) < dataset.retention['days']:
+            if len(days) < this_set.retention['days']:
                 days.append(snap)
-            if snap.date.weekday() == 6 and len(weeks) < dataset.retention['weeks']:
+            if snap.date.weekday() == 6 and len(weeks) < this_set.retention['weeks']:
                 weeks.append(snap)
-            if snap.date.day == 1 and len(months) < dataset.retention['months']:
+            if snap.date.day == 1 and len(months) < this_set.retention['months']:
                 months.append(snap)
-        elif len(hours) < dataset.retention['hours']:
+        elif len(hours) < this_set.retention['hours']:
             hours.append(snap)
         if snap not in hours and snap not in days and snap not in weeks and snap not in months:
             snaps_to_delete.append(snap)
 
     if not snaps_to_delete:
-        log.info("No snapshots to delete for dataset {0}".format(dataset.name))
+        log.info("No snapshots to delete for dataset {0}".format(this_set.name))
 
     for snap in snaps_to_delete:
         try:
@@ -80,24 +80,24 @@ def prune(dataset):
         else:
             continue
 
-    log.info("Completed prune job for dataset {0}".format(dataset.name))
+    log.info("Completed prune job for dataset {0}".format(this_set.name))
 
-def snapshot(dataset):
+def snapshot(this_set):
     '''
     Creates a snapshot of a dataset
     '''
-    log = logging.getLogger('zback.snapshot')
-    log.info("Beginning snapshot run on dataset {0}".format(dataset.name))
+    log = logging.getLogger('witback.snapshot')
+    log.info("Beginning snapshot run on dataset {0}".format(this_set.name))
 
     try:
-        dataset.take_snapshot()
+        this_set.take_snapshot()
     except:
-        log.error("Error taking snapshot for dataset {0}, enable debug log for more info".format(dataset.name))
+        log.error("Error taking snapshot for dataset {0}, enable debug log for more info".format(this_set.name))
         raise RuntimeError("Snapshot fail")
 
-    log.info("Snapshot run completed successfully for dataset {0}".format(dataset.name))
+    log.info("Snapshot run completed successfully for dataset {0}".format(this_set.name))
 
-def send(dataset, location, config):
+def send(this_set, location, config):
     '''
     Sends a snapshot to a location
     '''
@@ -108,15 +108,19 @@ def send(dataset, location, config):
     # Begin sending into local end of port forward
     # Confirm snapshot received on remote end 
 
-    log = logging.getLogger('zback.send')
+    log = logging.getLogger('witback.send')
 
     try:
-        dataset.get_properties()
-        for snap in dataset.snaplist:
+        this_set.get_properties()
+        for snap in this_set.snaplist:
             snap.get_properties()
     except ValueError:
-        log.error("Could not refresh dataset properties for dataset {0}".format(dataset.name))
+        log.error("Could not refresh dataset properties for dataset {0}".format(this_set.name))
         raise RuntimeError("Error getting dataset properties")
+
+    if not this_set.snaplist:
+        log.error("No snapshots for local dataset {0}, aborting".format(this_set.name))
+        raise RuntimeError("No snapshots")
 
     ssh = paramiko.SSHClient()
     ssh.load_system_host_keys()
@@ -163,12 +167,13 @@ def send(dataset, location, config):
         ssh.close()
         raise RuntimeError("Could not check remote snapshot")
 
-    latest_remote_fmt = "{0}@{1}".format(dataset.name, latest_remote.split("@")[1])
+    latest_remote_fmt = "{0}@{1}".format(this_set.name, latest_remote.split("@")[1])
 
-    latest_local = dataset.snaplist.sort(key=lambda item:item.date).pop()
+    this_set.snaplist.sort(key=lambda item:item.date)
+    latest_local = this_set.snaplist.pop()
 
     if latest_local.name == latest_remote_fmt:
-        log.info("Remote snapshot up to date for dataset {0}".format(dataset.name))
+        log.info("Remote snapshot up to date for dataset {0}".format(this_set.name))
         ssh.close()
         return
 
@@ -221,11 +226,11 @@ def send(dataset, location, config):
         ssh.close()
         raise RuntimeError("Send failed")
     
-    log.info("Send successful for dataset {0}".format(dataset.name))
+    log.info("Send successful for dataset {0}".format(this_set.name))
 
     # If snapshot sent successfully, put a hold on it
 
-    ref = dataset.location.split(':')[0]
+    ref = this_set.location.split(':')[0]
     try:
         latest_local.hold(ref)
     except TypeError:
@@ -234,7 +239,7 @@ def send(dataset, location, config):
         log.warning("Could not hold snapshot {0}".format(latest_local.name))
 
     # Remove any other holds with this ref
-    held_snaps = [snap for snap in dataset.snaplist if snap.holds is not None]
+    held_snaps = [snap for snap in this_set.snaplist if snap.holds is not None]
     for snap in held_snaps:
         if ref in snap.holds:
             try:
