@@ -112,6 +112,8 @@ def send(dataset, location, config):
 
     try:
         dataset.get_properties()
+        for snap in dataset.snaplist:
+            snap.get_properties()
     except ValueError:
         log.error("Could not refresh dataset properties for dataset {0}".format(dataset.name))
         raise RuntimeError("Error getting dataset properties")
