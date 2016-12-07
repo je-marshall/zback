@@ -116,9 +116,9 @@ class ZbackServer(object):
         srv_port = self.config['server_port']
 
         # Set up the scheduler to periocially query the current dataset list
-
-        self.scheduler.add_job(self.refresh_setlist, 'cron', second=0)
-        self.scheduler.start()
+        # This generates a lot of annoying logs, need to revise
+        # self.scheduler.add_job(self.refresh_setlist, 'cron', second=0)
+        # self.scheduler.start()
 
         self.server = ThreadedTCPServer((srv_host, srv_port), ThreadedTCPRequestHandler)
         self.refresh_setlist()
