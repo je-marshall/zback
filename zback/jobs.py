@@ -207,7 +207,7 @@ def send(this_set, location, config):
 
     log.debug("Starting send process")
 
-    send_cmd = 'zfs send -i {0} {1}'.format(latest_remote, latest_local.name)
+    send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
     
     send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
 
