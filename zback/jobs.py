@@ -118,10 +118,6 @@ def send(dataset, location, config):
         log.error("Could not refresh dataset properties for dataset {0}".format(dataset.name))
         raise RuntimeError("Error getting dataset properties")
 
-    if not dataset.snaplist:
-        log.error("No snapshots for local dataset {0}, aborting".format(dataset.name))
-        raise RuntimeError("No snapshots")
-
     ssh = paramiko.SSHClient()
     ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
