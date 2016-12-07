@@ -180,8 +180,7 @@ def send(this_set, location, config):
     transport = ssh.get_transport()
 
     try:
-        req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', config['server_port']),
-                                          src_addr=('', 0))
+        req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', int(config['server_port'])), src_addr=('', 0))
         log.debug("Opened channel to remote host {0}, requesting receive process".format(location))
         req_chan.sendall(location.split(':')[1])
         data = req_chan.recv(4096)
