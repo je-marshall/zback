@@ -48,7 +48,9 @@ class Snapshot(object):
             else:
                 self.log.debug("No tags found for snapshot {0}".format(self.name))
         except AttributeError:
-            self.log.debug("No tags for snapshot {0}".format(self.name))
+            # This just got too annoying
+            # self.log.debug("No tags for snapshot {0}".format(self.name))
+            pass
 
         try:
             parse_date = utils.date_from_string(date)
