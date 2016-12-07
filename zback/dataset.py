@@ -10,7 +10,7 @@ class Dataset(object):
     '''
 
     def __init__(self, name):
-        self.log = logging.getLogger('witback.dataset')
+        self.log = logging.getLogger('zback.dataset')
 
         self.name = name
         self.snapshot = None

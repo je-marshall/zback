@@ -26,7 +26,7 @@ class ZbackClient(object):
         self.config = config
         self.scheduler = BackgroundScheduler()
         self.setlist = []
-        self.log = logging.getLogger('witback.client')
+        self.log = logging.getLogger('zback.client')
     
     def add_jobs(self):
 

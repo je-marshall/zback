@@ -8,7 +8,7 @@ class Snapshot(object):
     '''
 
     def __init__(self, name):
-        self.log = logging.getLogger('witback.snap')
+        self.log = logging.getLogger('zback.snap')
         self.name = name
         self.date = None
         self.holds = None

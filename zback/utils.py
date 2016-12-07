@@ -276,7 +276,7 @@ def snapshot_worker(snapshot_q):
     Gets snapshot properties
     '''
 
-    log = logging.getLogger('witback.utils')
+    log = logging.getLogger('zback.utils')
 
     while not snapshot_q.empty():
         this_snap = snapshot_q.get()
@@ -296,7 +296,7 @@ def dataset_worker(dataset_q, snapshot_q):
     the snapshot queue, to be processed separately
     '''
 
-    log = logging.getLogger('witback.utils')
+    log = logging.getLogger('zback.utils')
 
     while not dataset_q.empty():
         this_set = dataset_q.get()
@@ -327,7 +327,7 @@ def refresh_properties():
     except:
         pass
 
-    log = logging.getLogger('witback.utils')
+    log = logging.getLogger('zback.utils')
     dataset_q = Queue.Queue()
     snapshot_q = Queue.Queue()
 

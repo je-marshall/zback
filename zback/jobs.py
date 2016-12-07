@@ -12,7 +12,7 @@ def prune(dataset):
     Deletes all unneeded snapshots
     '''
 
-    log = logging.getLogger('witback.prune')
+    log = logging.getLogger('zback.prune')
     log.debug("Beginning prune on dataset {0}".format(dataset.name))
 
     # Need to refresh properties to get updated snaplist
@@ -86,7 +86,7 @@ def snapshot(dataset):
     '''
     Creates a snapshot of a dataset
     '''
-    log = logging.getLogger('witback.snapshot')
+    log = logging.getLogger('zback.snapshot')
     log.info("Beginning snapshot run on dataset {0}".format(dataset.name))
 
     try:
@@ -108,7 +108,7 @@ def send(dataset, location, config):
     # Begin sending into local end of port forward
     # Confirm snapshot received on remote end 
 
-    log = logging.getLogger('witback.send')
+    log = logging.getLogger('zback.send')
 
     try:
         dataset.get_properties()
