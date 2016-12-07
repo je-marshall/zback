@@ -116,6 +116,10 @@ def send(dataset, location, config):
         log.error("Could not refresh dataset properties for dataset {0}".format(dataset.name))
         raise RuntimeError("Error getting dataset properties")
 
+    if not dataset.snaplist:
+        log.error("No snapshots for local dataset {0}, aborting".format(dataset.name))
+        raise RuntimeError("No snapshots")
+
     ssh = paramiko.SSHClient()
     ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -153,10 +157,22 @@ def send(dataset, location, config):
             log.debug("Latest snapshot {0} found on host {1}".format(latest_remote, location))
         except IndexError:
             log.error("No remote snapshots in location {0}".format(location))
+            ssh.close()
+            raise RuntimeError("No remote snapshots")
     else:
         log.error("Error checking for remote snapshot")
         log.debug(err)
+        ssh.close()
         raise RuntimeError("Could not check remote snapshot")
+
+    latest_remote_fmt = "{0}@{1}".format(dataset.name, latest_remote.split("@")[1])
+
+    latest_local = dataset.snaplist.sort(key=lambda item:item.date).pop()
+
+    if latest_local.name == latest_remote_fmt:
+        log.info("Remote snapshot up to date for dataset {0}".format(dataset.name))
+        ssh.close()
+        return
 
     transport = ssh.get_transport()
 
@@ -175,6 +191,7 @@ def send(dataset, location, config):
     except paramiko.SSHException as e:
         log.error("Failed to open forwarding channel to remote host {0}".format(location))
         log.debug(e)
+        ssh.close()
         raise RuntimeError("Channel open failed")
 
     try:
@@ -183,14 +200,47 @@ def send(dataset, location, config):
     except paramiko.SSHException as e:
         log.error("Failed to open forwarding channel to remote host {0}".format(location))
         log.debug(e)
+        ssh.close()
         raise RuntimeError("Channel open failed")
 
-    latest_remote_fmt = "{0}@{1}".format(dataset.name, latest_remote.split("@")[1])
+    log.debug("Starting send process")
+
+    send_cmd = 'zfs send -i {0} {1}'.format(latest_remote, latest_local.name)
     
-    try:
-        log.debug("Beginning send for remote host {0}".format(location))
-        dataset.send(latest_remote_fmt, forward_chan, location)
-    except RuntimeError:
-        raise
-    finally:
+    send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
+
+    while send.returncode is None:
+        send.poll()
+        for line in send.stdout:
+            forward_chan.send(line)
+
+    if send.returncode == 0:
+        forward_chan.close()
+        return
+    else:
+        log.debug("Sending snapshot {0} failed with returncode {1}".format(
+            latest_local.name, send.returncode))
         ssh.close()
+        raise RuntimeError("Send failed")
+    
+    log.info("Send successful for dataset {0}".format(dataset.name))
+
+    # If snapshot sent successfully, put a hold on it
+
+    ref = dataset.location.split(':')[0]
+    try:
+        latest_local.hold(ref)
+    except TypeError:
+        log.warning("Could not hold snapshot {0}".format(latest_local.name))
+    except subprocess.CalledProcessError:
+        log.warning("Could not hold snapshot {0}".format(latest_local.name))
+
+    # Remove any other holds with this ref
+    held_snaps = [snap for snap in dataset.snaplist if snap.holds is not None]
+    for snap in held_snaps:
+        if ref in snap.holds:
+            try:
+                snap.unhold(ref)
+            except:
+                log.warning("Could not unhold snapshot {0}".format(snap.name))
+    ssh.close()
