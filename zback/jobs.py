@@ -251,7 +251,7 @@ def send(this_set, location, config):
 
     # If snapshot sent successfully, put a hold on it
 
-    ref = this_set.location.split(':')[0]
+    ref = location.split(':')[0]
     try:
         latest_local.hold(ref)
     except TypeError:
