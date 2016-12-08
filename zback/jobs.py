@@ -12,7 +12,7 @@ def prune(this_set):
     Deletes all unneeded snapshots
     '''
 
-    log = logging.getLogger('witback.prune')
+    log = logging.getLogger('zback.prune')
     log.debug("Beginning prune on dataset {0}".format(this_set.name))
 
     # Need to refresh properties to get updated snaplist
@@ -86,7 +86,7 @@ def snapshot(this_set):
     '''
     Creates a snapshot of a dataset
     '''
-    log = logging.getLogger('witback.snapshot')
+    log = logging.getLogger('zback.snapshot')
     log.info("Beginning snapshot run on dataset {0}".format(this_set.name))
 
     try:
@@ -108,7 +108,7 @@ def send(this_set, location, config):
     # Begin sending into local end of port forward
     # Confirm snapshot received on remote end 
 
-    log = logging.getLogger('witback.send')
+    log = logging.getLogger('zback.send')
 
     try:
         this_set.get_properties()
@@ -169,8 +169,9 @@ def send(this_set, location, config):
 
     latest_remote_fmt = "{0}@{1}".format(this_set.name, latest_remote.split("@")[1])
 
-    this_set.snaplist.sort(key=lambda item:item.date)
+    this_set.snaplist.sort(key=lambda item: item.date)
     latest_local = this_set.snaplist.pop()
+    log.debug("Sending snapshot: {0}".format(latest_local.name))
 
     if latest_local.name == latest_remote_fmt:
         log.info("Remote snapshot up to date for dataset {0}".format(this_set.name))
