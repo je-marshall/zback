@@ -169,6 +169,11 @@ def send(this_set, location, config):
 
     latest_remote_fmt = "{0}@{1}".format(this_set.name, latest_remote.split("@")[1])
 
+    present = [snap for snap in this_set.snaplist if snap.name == latest_remote_fmt]
+    if not present:
+        log.error("Latest remote snapshot {0} is not present on local side, need to reseed".format(latest_remote_fmt))
+        raise RuntimeError("Remote snapshot not present locally")
+
     this_set.snaplist.sort(key=lambda item: item.date)
     latest_local = this_set.snaplist.pop()
     log.debug("Sending snapshot: {0}".format(latest_local.name))
