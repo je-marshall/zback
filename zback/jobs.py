@@ -110,6 +110,8 @@ def send(this_set, location, config):
 
     log = logging.getLogger('zback.send')
 
+    # Make sure the properties for the dataset are up to date and bail if
+    # they can't be accessed
     try:
         this_set.get_properties()
         for snap in this_set.snaplist:
@@ -122,24 +124,28 @@ def send(this_set, location, config):
         log.error("No snapshots for local dataset {0}, aborting".format(this_set.name))
         raise RuntimeError("No snapshots")
 
+    # Initialise the ssh client and set its defaults
     ssh = paramiko.SSHClient()
     ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     ssh_config = paramiko.SSHConfig()
 
+    # Use the config supplied ssh config file, otherwise revert to sys default
     if not config['ssh_config_file']:
         with open('~/.ssh/config') as f:
           ssh_config.parse(f)
     else:
         with open(config['ssh_config_file']) as f:
             ssh_config.parse(f)
-    
+
+    # Attempt a host lookup from the config file
     host_lookup = ssh_config.lookup(location.split(':')[0])
     if len(host_lookup) == 1:
         log.error("Host {0} not configured in ssh config file".format(location))
         raise RuntimeError("Error with ssh config")
-
+    
+    # Attempt to connect to the looked up host
     log.debug("Attempting to connect to host {0}".format(location))
     try:
         ssh.connect(host_lookup['hostname'], username=host_lookup['user'], port=int(host_lookup['port']))
@@ -147,7 +153,8 @@ def send(this_set, location, config):
         log.error("Could not connect to remote host {0}".format(location))
         log.debug(e)
         raise
-
+    
+    # Check what the latest snapshot is on the remote end
     check_command = 'zfs list -H -t snap -r {0} -o name'.format(location.split(':')[1])
 
     log.debug("Checking for latest remote snapshot on host {0}".format(location))
@@ -167,13 +174,15 @@ def send(this_set, location, config):
         ssh.close()
         raise RuntimeError("Could not check remote snapshot")
 
+    # Format the snapshot so we can check for it on the local side
     latest_remote_fmt = "{0}@{1}".format(this_set.name, latest_remote.split("@")[1])
 
     present = [snap for snap in this_set.snaplist if snap.name == latest_remote_fmt]
     if not present:
         log.error("Latest remote snapshot {0} is not present on local side, need to reseed".format(latest_remote_fmt))
         raise RuntimeError("Remote snapshot not present locally")
-
+    
+    # Get the latest local snapshot so as to be able to send an incremental
     this_set.snaplist.sort(key=lambda item: item.date)
     latest_local = this_set.snaplist.pop()
     log.debug("Sending snapshot: {0}".format(latest_local.name))
@@ -183,8 +192,11 @@ def send(this_set, location, config):
         ssh.close()
         return
 
+    # Get the underlying ssh transport to request some channels
     transport = ssh.get_transport()
 
+    # First channel connects to the server process on the other end and asks it to set up 
+    # an mbuffer and zfs recv process, which, if successful, will return a port number
     try:
         req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', int(config['server_port'])), src_addr=('', 0))
         log.debug("Opened channel to remote host {0}, requesting receive process".format(location))
@@ -196,12 +208,15 @@ def send(this_set, location, config):
             log.error("Error getting port for remote receive process, aborting")
             log.debug("Received: {0}".format(data))
             raise RuntimeError("Remote receive failed")
+        finally:
+            req_chan.close()
     except paramiko.SSHException as e:
         log.error("Failed to open forwarding channel to remote host {0}".format(location))
         log.debug(e)
         ssh.close()
         raise RuntimeError("Channel open failed")
-
+    
+    # Second channel is the one we will be forwarding the zfs send across
     try:
         forward_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
         log.debug("Opened channel to remote host {0}".format(location))
@@ -217,11 +232,13 @@ def send(this_set, location, config):
 
     send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
 
+    # Forward the data across the channel until the local send has finished
     while send.returncode is None:
         send.poll()
         for line in send.stdout:
             forward_chan.send(line)
-
+    
+    # Check the returncode to see if anything went awry
     if send.returncode == 0:
         forward_chan.close()
     else:
@@ -229,7 +246,7 @@ def send(this_set, location, config):
             latest_local.name, send.returncode))
         ssh.close()
         raise RuntimeError("Send failed")
-    
+
     log.info("Send successful for dataset {0}".format(this_set.name))
 
     # If snapshot sent successfully, put a hold on it
