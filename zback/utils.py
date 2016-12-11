@@ -184,61 +184,16 @@ def format_destinations(destinations):
     return return_string.rstrip(",")
 
 
-def parse_config(config_file, defaults):
-    '''
-        Parses a zback config file and returns a dictionary
-    '''
-    pass    
-    if not os.path.isfile(config_file):
-        return False
-
-    config = ConfigParser.RawConfigParser()
-    config.read(config_file)
-
-    config_return = {}
-
-    try:
-        config_return['pidfile_path'] = config.get('zback', 'PID') 
-    except:
-        config_return['pidfile_path'] = defaults['pidfile_path']
-
-    try:
-        config_return['log_file'] = config.get('zback', 'LOG')  
-    except:
-        config_return['log_file'] = defaults['log_file']
-    
-    try:
-        config_return['run_dir'] = config.get('zback', 'RUN')
-    except:
-        config_return['run_dir'] = defaults['run_dir']
-    
-    try:
-        config_return['log_lvl'] = config.get('zback', 'LVL')
-    except:
-        config_return['log_lvl'] = defaults['log_lvl']
-    
-    try:
-        config_return['limit'] = config.get('rate', 'limit')
-    except:
-        config_return['limit'] = defaults['limit']
-
-    try:
-        config_return['zdir'] = config.get('zback', 'zdir')
-    except: 
-        config_return['zdir'] = defaults['zdir']
-
-    return config_return
-
-def read_status(socket_path):
+def read_status(address, port):
     '''
     Opens a connection to the status output socket and parses what is in
     there via pickle to return a list of objects
     '''
 
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
-        sock.connect(socket_path)
+        sock.connect((address, port))
     except socket.error as e:
         return False
 

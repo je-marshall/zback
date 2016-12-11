@@ -209,4 +209,3 @@ class ZbackClient(object):
                 continue
             finally:
                 client.close()
-                    

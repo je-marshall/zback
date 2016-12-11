@@ -1,33 +1,50 @@
-import logging
-import os
 import socket
-import pickle
 import threading
+import Queue
+import SocketServer
+import pickle
+import time
+import sys
+import os
 import subprocess
+import logging
 import dataset
 import utils
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
+class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
+        # def handle(self):
+        # data = self.request.recv(1024)
+        # cur_thread = threading.current_thread()
+        # response = "{}: {}".format(cur_thread.name, data)
+        # self.request.sendall(response)
 
-class Server(object):
-    '''
-    Server process. Can run in onsite or offsite mode
-    '''
+    def handle(self):
+        data = self.request.recv(4096)
+        
+        # Ideally this would be a pickle, for more advanced requests
+        fmt_data = str(data.rstrip())
 
-    def __init__(self, config):
-        self.running = False
-        self.config = config
-        self.current_tasks = []
-        self.sock = socket.socket(socket.AF_UNIX)
-        self.log = logging.getLogger('witback.server')
-    
-    def receive_handler(self, port, dataset):
-        '''
-        Called when an incoming send request is detected and starts an
-        mbuffer process on the designated port, then pipes the result into
-        a zfs receive command
-        '''
-        task = {'dataset' : dataset.name, 'port' : port, 'progress' : ''}
-        self.current_tasks.append(task)
+        self.server.log.info("Incoming request")
+
+        if fmt_data:
+            try:
+                this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
+                if this_dataset:
+                    this_port = utils.get_open_port()
+                    self.receive(this_port, this_dataset)
+            except IndexError:
+                self.server.log.debug("Non dataset request")
+            if fmt_data == 'shutdown':
+                self.server.log.info("Received shutdown command")
+                self.server.server_close()
+
+    def receive(self, port, dataset):
+
+        self.log = logging.getLogger("zback.server")
+
+        self.log.info("Receiving stream for dataset {0}".format(dataset.name))
 
         pipe_cmd = 'mbuffer -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
@@ -37,80 +54,82 @@ class Server(object):
                                     stderr=subprocess.PIPE)
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
+            self.log.debug("Started pipe process {0} with pid {1}".format(pipe_cmd, pipe.pid))
+            self.log.debug("Started receive process {0} with pid {1}".format(recv_cmd, recv.pid))
+
         except subprocess.CalledProcessError as e:
-            self.log.error("Error starting receive subprocess for dataset {0}".format(dataset.name))
-            self.log.debug(e)
-            self.current_tasks.remove(task)
+            self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
+            self.server.log.debug(e)
             try:
                 pipe.kill()
                 recv.kill()
             except:
                 pass
-            raise RuntimeError("Mbuffer command failed")
+            raise
+
+        self.request.sendall(str(port))
 
         while recv.returncode is None:
             recv.poll()
-            task['progress'] = pipe.stderr.readline()
         if recv.returncode == 0:
-            self.log.info("Successfully received snapshot for dataset {0}".format(dataset.name))
-            self.current_tasks.remove(task)
+            self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
-            self.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
-            self.log.debug(recv.returncode)
-            self.current_tasks.remove(task)
+            self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+            self.server.log.debug(recv.returncode)
 
-    def stop(self):
-        self.log.info('Received exit signal, shutting down... \n')
-        self.running = False
-        self.sock.close()
+
+class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+    pass
+
+class ZbackServer(object):
+    '''
+    Main server class, does prep and handles reloads
+    '''
+
+    def __init__(self, config):
+        self.config = config
+        self.log = logging.getLogger('zback.server')
+        self.scheduler = BackgroundScheduler()
+        self.server = None
+
+    def refresh_setlist(self):
+        '''
+        Refreshes the setlist and pushes it to the SocketServer 
+        '''
+        try:
+            setlist = utils.refresh_properties()
+        except subprocess.CalledProcessError:
+            self.log.error("Error querying datasets")
+            sys.exit(1)
+        except Queue.Empty:
+            self.log.error("Could not find any datasets, check ZFS installed and sets configured")
+            sys.exit(1)
+        
+        self.server.datasets = setlist
+
 
     def start(self):
         '''
-        Binds to a local unix socket for communication and then loops
+        Starts the server, unless it is already running
         '''
+        srv_host = self.config['server_addr']
+        srv_port = self.config['server_port']
 
-        datasets = dataset.Dataset.get_datasets()
+        # Set up the scheduler to periocially query the current dataset list
+        # This generates a lot of annoying logs, need to revise
+        # self.scheduler.add_job(self.refresh_setlist, 'cron', second=0)
+        # self.scheduler.start()
 
-        # try:
-        #     os.unlink(self.config['server_socket'])
-        # except OSError as e:
-        #     self.log.error("Could not bind to local socket, server in use?")
-        #     self.log.debug(e)
+        self.server = ThreadedTCPServer((srv_host, srv_port), ThreadedTCPRequestHandler)
+        self.refresh_setlist()
+        self.server.log = self.log
 
-        self.sock.bind(self.config['server_socket'])
-        self.sock.listen(5)
+        server_thread = threading.Thread(target=self.server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
 
-        self.running = True
+        while server_thread.isAlive:
+            time.sleep(60)
 
-        while self.running:
-            client, clientaddr = self.sock.accept()
-            try:
-                data = client.recv(4096)
-                self.log.debug(data)
-                fmt_data = str(data.rstrip())
-
-                this_dataset = [ds for ds in datasets if ds.name == fmt_data][0]
-                if this_dataset:
-                    this_port = utils.get_open_port()
-                    try:
-                        self.log.debug("Starting receive process")
-                        client.sendall(str(this_port))
-                        loop = threading.Thread(target=self.receive_handler, args=(this_port, this_dataset))
-                        loop.daemon = True
-                        loop.start()
-                    except RuntimeError as e:
-                        self.log.error("Error starting receive process")
-                        self.log.debug(e)
-                        continue
-                    except Exception as e:
-                        self.log.debug(e)
-
-                if fmt_data == 'status':
-                    client.sendall("{0}\n".format(pickle.dumps(self.current_tasks, -1)))
-
-                if fmt_data == 'stop':
-                    self.stop()
-            except:
-                continue 
-            finally:
-                client.close()
+        self.log.info("Shutting down")
+        sys.exit(1)

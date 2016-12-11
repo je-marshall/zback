@@ -52,7 +52,7 @@ def server_handler(config_dict, action):
     '''
 
     if action == 'start':
-        this_server = server.Server(config_dict)
+        this_server = server.ZbackServer(config_dict)
         print "Starting server"
         this_server.start()
     elif action == 'stop':
