@@ -77,28 +77,28 @@ class ZbackClient(object):
             if this_set.destinations is not None:
                 for location in this_set.destinations:
                     if location[1] == 'hourly':
-                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=0,
+                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=1,
                                                args=[this_set, location[0], self.config])
 
                         self.log.info("Added hourly send for dataset {0} to location {1}".format(
                             this_set.name, location[0]))
 
                     elif location[1] == 'daily':
-                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=0,
+                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=1,
                                                hour=0, args=[this_set, location[0], self.config])
 
                         self.log.info("Added daily send for dataset {0} to location {1}".format(
                             this_set.name, location[0]))
 
                     elif location[1] == 'weekly':
-                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=0,
+                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=1,
                                                hour=0, day='sun', args=[this_set, location[0], self.config])
 
                         self.log.info("Added weekly send for dataset {0} to location {1}".format(
                             this_set.name, location[0]))
 
                     elif location[1] == 'monthly':
-                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=0,
+                        self.scheduler.add_job(jobs.send, 'cron', second=0, minute=1,
                                                hour=0, day=0, args=[this_set, location[0], self.config])
 
                         self.log.info("Added monthly send for dataset {0} to location {1}".format(
