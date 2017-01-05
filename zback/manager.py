@@ -56,15 +56,19 @@ def server_handler(config_dict, action):
         print "Starting server"
         this_server.start()
     elif action == 'stop':
-        sock = socket.socket(socket.AF_UNIX)
-        try:
-            sock.connect(config_dict['server_socket'])
-        except socket.error:
-            print "Could not connect to server socket, is server running?"
-            sys.exit(1)
         print "Sending shutdown command to server"
-        sock.send(pickle.dumps("stop"))
+        try:
+            utils.send_message(config_dict['server_adress'],
+                               config_dict['server_port'],
+                               'stop')
+        except socket.error:
+            print "Error connecting to server, is server running?"
+            sys.exit(1)
+        except pickle.UnpicklingError:
+            sys.exit(0)
+
         sys.exit(0)
+
     elif action == 'restart':
         sock = socket.socket(socket.AF_UNIX)
         try:

@@ -144,7 +144,7 @@ class ZbackClient(object):
                 send_loc = ""
 
             run_cmd = "{0}/bin/external-monitor {1} {2} {3} {4}".format(
-                self.config['root_dir'],
+                self.config['zdir'],
                 event.code,
                 this_job.name,
                 dataset,

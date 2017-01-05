@@ -22,9 +22,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
     def handle(self):
         data = self.request.recv(4096)
-        
-        # Ideally this would be a pickle, for more advanced requests
-        fmt_data = str(data.rstrip())
+
+        fmt_data = pickle.loads(str(data.rstrip()))
 
         self.server.log.info("Incoming request")
 
@@ -67,7 +66,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 pass
             raise
 
-        self.request.sendall(str(port))
+        self.request.sendall(pickle.dumps((port)))
 
         while recv.returncode is None:
             recv.poll()

@@ -184,20 +184,20 @@ def format_destinations(destinations):
     return return_string.rstrip(",")
 
 
-def read_status(address, port):
+def send_message(address, port, message):
     '''
-    Opens a connection to the status output socket and parses what is in
-    there via pickle to return a list of objects
+    Opens a connection to a server/client and sends a pickled
+    message, then returns an unpickled result
     '''
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
         sock.connect((address, port))
-    except socket.error as e:
-        return False
+    except socket.error:
+        raise
 
-    send_d = 'status'
+    send_d = pickle.dumps(message)
 
     sock.send(send_d)
 
@@ -212,7 +212,7 @@ def read_status(address, port):
         format_data = pickle.loads(data)
         return format_data
     except pickle.UnpicklingError as e:
-        return False
+        raise
 
 def get_open_port():
     '''

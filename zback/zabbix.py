@@ -9,7 +9,7 @@ import utils
 
 DESC = "SOME TEXT"
 
-def main():
+def main(config):
     '''
         Outputs formatted JSON for autodiscovery rules to be fed into zabbix
     '''
@@ -22,7 +22,7 @@ def main():
 
     # This bit just uses the default config for run dir. Would be nice to be
     # able to get it to respect whatever config is being used.
-    jobs = utils.read_status(DEFAULT_CFG)
+    jobs = utils.send_message(config['client_address'], ['client_port'], 'status')
 
     log = logging.getLogger('zback')
     hndl = logging.NullHandler()
@@ -33,11 +33,11 @@ def main():
         sys.exit(1)
 
     if args.action == 'snap':
-        snap([ job for job in jobs if job['name'] == 'backup_job'])
+        snap([job for job in jobs if job['name'] == 'snap'])
     elif args.action == 'prune':
-        prune([ job for job in jobs if job['name'] == 'prune_job'])
+        prune([job for job in jobs if job['name'] == 'prune'])
     elif args.action == 'send':
-        send([ job for job in jobs if job['name'] == 'send_job'])
+        send([job for job in jobs if job['name'] == 'send'])
 
 def snap(snap_list):
     '''

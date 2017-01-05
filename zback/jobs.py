@@ -1,4 +1,5 @@
 from operator import itemgetter
+import pickle
 import paramiko
 import subprocess
 import logging
@@ -200,13 +201,15 @@ def send(this_set, location, config):
     try:
         req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', int(config['server_port'])), src_addr=('', 0))
         log.debug("Opened channel to remote host {0}, requesting receive process".format(location))
-        req_chan.sendall(location.split(':')[1])
+        req_pickle = pickle.dumps(location.split(':')[1])
+        req_chan.sendall(req_pickle)
         data = req_chan.recv(4096)
         try:
-            port = int(data.rstrip())
-        except:
+            port = pickle.loads(int(data.rstrip()))
+        except Exception as e:
             log.error("Error getting port for remote receive process, aborting")
             log.debug("Received: {0}".format(data))
+            log.debug(e)
             raise RuntimeError("Remote receive failed")
         finally:
             req_chan.close()
