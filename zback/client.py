@@ -144,7 +144,7 @@ class ZbackClient(object):
                 send_loc = ""
 
             run_cmd = "{0}/bin/external-monitor {1} {2} {3} {4}".format(
-                self.config['zdir'],
+                self.config['general']['zdir'],
                 event.code,
                 this_job.name,
                 dataset,
@@ -189,11 +189,11 @@ class ZbackClient(object):
 
         sock = socket.socket(socket.AF_UNIX)
         try:
-            os.unlink(self.config['client_socket'])
+            os.unlink(self.config['client']['socket'])
         except OSError:
             pass
         
-        sock.bind(self.config['client_socket'])
+        sock.bind(self.config['client']['socket'])
         sock.listen(5)
 
         while True:

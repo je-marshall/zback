@@ -111,8 +111,8 @@ class ZbackServer(object):
         '''
         Starts the server, unless it is already running
         '''
-        srv_host = self.config['server_addr']
-        srv_port = self.config['server_port']
+        srv_host = self.config['server']['address']
+        srv_port = self.config['server']['port']
 
         # Set up the scheduler to periocially query the current dataset list
         # This generates a lot of annoying logs, need to revise

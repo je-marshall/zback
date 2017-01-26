@@ -133,11 +133,11 @@ def send(this_set, location, config):
     ssh_config = paramiko.SSHConfig()
 
     # Use the config supplied ssh config file, otherwise revert to sys default
-    if not config['ssh_config_file']:
+    if not config['general']['ssh_config_file']:
         with open('~/.ssh/config') as f:
           ssh_config.parse(f)
     else:
-        with open(config['ssh_config_file']) as f:
+        with open(config['general']['ssh_config_file']) as f:
             ssh_config.parse(f)
 
     # Attempt a host lookup from the config file
