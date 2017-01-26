@@ -1,21 +1,164 @@
-#!/bin/bash
+#!/srv/zback/env/bin/python
 
-# Script to handle calling zback and its various functions
+import argparse
+import logging
+import socket
+import pickle
+import sys
+import signal
+from zback import server, client, utils
 
-ZDIR=/srv/zback
-MANAGER=$ZDIR/zback/manager.py
-ZBX=$ZDIR/zback/zabbix.py
-PY=$ZIDR/env/bin/python
+DESC = '''Need a description for this guy'''
+DEFAULT_CONFIG = '/srv/zback/conf/zback.conf'
 
+def handler_interactive(signum, frame):
+    '''
+    Very simple handler to catch Ctrl-C
+    '''
+    print "Caught Ctrl-C, exiting..."
+    sys.exit(0)
 
-case $1 in
-    client)
-    $PY $MANAGER $1 $2
-    ;;
-    server)
-    $PY $MANAGER $1 $2
-    ;;
-    zabbix)
-    $PY $ZBX $2
-    ;;
-esac
+def main():
+    '''
+    Simple wrapper script to simplify calling client.py and server.py
+    '''
+
+    config_dict = utils.read_config(DEFAULT_CONFIG)
+    parser = argparse.ArgumentParser(description=DESC)
+
+    parser.add_argument('component', choices=['client', 'server'])
+    parser.add_argument('action', choices=['start',
+                                           'stop',
+                                           'restart',
+                                           'status',
+                                           'configure',
+                                           'runonce'])
+    args = parser.parse_args()
+
+    if args.component == 'client':
+        client_handler(config_dict, args.action)
+    elif args.component == 'server':
+        server_handler(config_dict, args.action)
+    else:
+        print "Invalid command, please see help"
+
+def client_start(config_dict):
+    # Starts the client
+    this_client = client.ZbackClient(config_dict)
+    this_client.start()
+
+def client_stop(config_dict):
+    # Try to connect to the socket of the already running client and tell it to stop
+    sock = socket.socket(socket.AF_UNIX)
+    try:
+        sock.connect(config_dict['client']['socket'])
+    except socket.error:
+        print "Could not connect to client socket, check if it is running"
+        sys.exit(1)
+    sock.send(pickle.dumps("stop"))
+    sys.exit(0)
+
+def client_handler(config_dict, action):
+    '''
+    Handles client actions and sets up logging
+    '''
+
+    log_file = '{0}/log/zback-client.log'.format(config_dict['general']['zdir'])
+
+    numeric_level = getattr(logging, config_dict['client']['loglevel'], None)
+    if not isinstance(numeric_level, int):
+        print "Invalid log level specified for Zback Client, amend config file"
+        sys.exit(1)
+    
+    handler = logging.handlers.TimedRotatingFileHandler(log_file, when='0', interval=1, backupCount=10)
+    handler.setLevel(numeric_level)
+    handler.setFormatter(config_dict['general']['log_format'])
+
+    log = logging.getLogger('zback')
+    log.setLevel(numeric_level)
+    log.addHandler(handler)
+
+    if action == 'start':
+        client_start(config_dict)   
+
+    elif action == 'stop':
+        client_stop(config_dict)
+    
+    elif action == 'restart':
+        client_stop(config_dict)
+        client_start(config_dict)
+
+    elif action == 'status':
+        # Need to refactor the client to use AF_INET
+        print "Needs to be reimplemented"
+
+    elif action == 'configure':
+        print "Needs to be implemented"
+
+    elif action == 'runonce':
+        print "Needs to be implemented"
+    
+    else:
+        print "Unknown command"
+        sys.exit(1)
+
+def server_start(config_dict):
+    this_server = server.ZbackServer(config_dict)
+    print "Starting Zback server..."
+    this_server.start()
+
+def server_stop(config_dict):
+    print "Sending stop signal to server..."
+    try:
+        utils.send_message(config_dict['server']['address'],
+                           config_dict['server']['port'],
+                           "stop")
+    except:
+        print "Could not connect to server, check if it is running"
+        sys.exit(1)
+    sys.exit(0)
+
+def server_handler(config_dict, action):
+    '''
+    Handles server actions and sets up logging
+    '''
+
+    log_file = '{0}/log/zback-server.log'.format(config_dict['general']['zdir'])
+
+    numeric_level = getattr(logging, config_dict['server']['loglevel'], None)
+    if not isinstance(numeric_level, int):
+        print "Invalid log level specified for Zback Server, amend config file"
+        sys.exit(1)
+
+    handler = logging.handlers.TimedRotatingFileHandler(log_file, when='0', interval=1, backupCount=10)
+    handler.setLevel(numeric_level)
+    handler.setFormatter(config_dict['general']['log_format'])
+
+    log = logging.getLogger('zback')
+    log.setLevel(numeric_level)
+    log.addHandler(handler)
+
+    if action == 'start':
+        server_start(config_dict)
+
+    elif action == 'stop':
+        server_stop(config_dict)
+
+    elif action == 'restart':
+        server_stop(config_dict)
+        server_start(config_dict)
+
+    elif action == 'status':
+        try:
+            utils.send_message(config_dict['server']['address'],
+                               config_dict['server']['port'],
+                               "status")
+        except:
+            print "Could not connect to server, check if it is running"
+    else:
+        print "Unknown command"
+        sys.exit(1)
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, handler_interactive)
+    main()
