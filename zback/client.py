@@ -187,13 +187,15 @@ class ZbackClient(object):
 
         self.scheduler.start()
 
+        sockf = "{0}{1}".format(self.config['general']['zdir'], self.config['client']['socket'])
+
         sock = socket.socket(socket.AF_UNIX)
         try:
-            os.unlink(self.config['client']['socket'])
+            os.unlink(sockf)
         except OSError:
             pass
         
-        sock.bind(self.config['client']['socket'])
+        sock.bind(sockf)
         sock.listen(5)
 
         while True:
