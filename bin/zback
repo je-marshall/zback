@@ -79,7 +79,7 @@ def client_handler(config_dict, action):
         print "Invalid log level specified for Zback Client, amend config file"
         sys.exit(1)
     
-    handler = logging.handlers.TimedRotatingFileHandler(log_file, when='0', interval=1, backupCount=10)
+    handler = logging.FileHandler(log_file)
     handler.setLevel(numeric_level)
     handler.setFormatter(config_dict['general']['log_format'])
 
@@ -139,7 +139,7 @@ def server_handler(config_dict, action):
         print "Invalid log level specified for Zback Server, amend config file"
         sys.exit(1)
 
-    handler = logging.handlers.TimedRotatingFileHandler(log_file, when='0', interval=1, backupCount=10)
+    handler = logging.FileHandler(log_file)
     handler.setLevel(numeric_level)
     handler.setFormatter(config_dict['general']['log_format'])
 
