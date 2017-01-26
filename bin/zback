@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import ConfigParser
 import socket
 import pickle
 import sys
@@ -23,7 +24,15 @@ def main():
     Simple wrapper script to simplify calling client.py and server.py
     '''
 
-    config_dict = utils.read_config(DEFAULT_CONFIG)
+    # This is not ideal as its a private API. HOWEVER, it saves a great deal
+    # of fucking around, especially when/if a value has to change. It is slightly 
+    # dangerous in the sense that if a section or value is missing then it will cause 
+    # the program to crap out but then I don't really care and this can be sorted
+    # at some other time
+    config = ConfigParser.ConfigParser()
+    config.read(DEFAULT_CONFIG)
+    config_dict = config._sections
+
     parser = argparse.ArgumentParser(description=DESC)
 
     parser.add_argument('component', choices=['client', 'server'])
