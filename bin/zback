@@ -73,6 +73,26 @@ def main():
     # else:
     #     print "Invalid command, please see help"
 
+def setup_logging(level, log_format, log_file):
+    '''
+    Sets up logging
+    '''
+    numeric_level = getattr(logging, level, None)
+    if not isinstance(numeric_level, int):
+        print "Invalid log level specified for Zback Server, amend config file"
+        sys.exit(1)
+
+    handler = logging.FileHandler(log_file)
+    handler.setLevel(numeric_level)
+    formatter = logging.Formatter(log_format)
+    handler.setFormatter(formatter)
+
+    log = logging.getLogger('zback')
+    log.setLevel(numeric_level)
+    log.addHandler(handler)
+
+    return log
+
 def monitor_handler(config_dict, monitor_type):
     '''
     Runs specified action once, logging to file and the conesole
@@ -107,20 +127,9 @@ def client_handler(config_dict, action):
     '''
 
     log_file = '{0}/log/zback-client.log'.format(config_dict['general']['zdir'])
+    log = setup_logging(config_dict['client']['loglevel'], config_dict['general']['log_format'], log_file)
 
-    numeric_level = getattr(logging, config_dict['client']['loglevel'], None)
-    if not isinstance(numeric_level, int):
-        print "Invalid log level specified for Zback Client, amend config file"
-        sys.exit(1)
-    
-    handler = logging.FileHandler(log_file)
-    handler.setLevel(numeric_level)
-    formatter = logging.Formatter(config_dict['general']['log_format'])
-    handler.setFormatter(formatter)
-
-    log = logging.getLogger('zback')
-    log.setLevel(numeric_level)
-    log.addHandler(handler)
+    print action
 
     if action == 'start':
         client_start(config_dict)   
@@ -168,20 +177,7 @@ def server_handler(config_dict, action):
     '''
 
     log_file = '{0}/log/zback-server.log'.format(config_dict['general']['zdir'])
-
-    numeric_level = getattr(logging, config_dict['server']['loglevel'], None)
-    if not isinstance(numeric_level, int):
-        print "Invalid log level specified for Zback Server, amend config file"
-        sys.exit(1)
-
-    handler = logging.FileHandler(log_file)
-    handler.setLevel(numeric_level)
-    formatter = logging.Formatter(config_dict['general']['log_format'])
-    handler.setFormatter(formatter)
-
-    log = logging.getLogger('zback')
-    log.setLevel(numeric_level)
-    log.addHandler(handler)
+    log = setup_logging(config_dict['server']['loglevel'], config_dict['general']['log_format'], log_file)
 
     if action == 'start':
         server_start(config_dict)
