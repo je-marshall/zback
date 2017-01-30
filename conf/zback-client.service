@@ -6,6 +6,6 @@ Documentation=https://wiki.workshopit.co.uk/doku.php?id=wit:zback:config
 
 [Service]
 Type=simple
-ExecStart=/srv/zback/bin/zback client start
-ExecStop=/srv/zback/bin/zback client stop
-ExecReload=/srv/zback/bin/zback client restart
+ExecStart=/usr/bin/zback client start
+ExecStop=/usr/bin/zback client stop
+ExecReload=/usr/bin/zback client restart
