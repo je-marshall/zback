@@ -81,12 +81,21 @@ mkdir $ZDIR/{log,run}
 
 echo -e "\n"
 echo "----------------------------------------------------------------------"
+echo "                        Linking templates and scripts"
+echo "----------------------------------------------------------------------"
+
+[[ -d /etc/zabbix/zabbix_agentd.d/ ]] && ln -sv $ZDIR/conf/userparameter_zback.conf /etc/zabbix/zabbix_agentd.d/userparameter_zback.conf
+ln -sv $ZDIR/conf/zback_client.service /etc/systemd/system/zback_client.service
+ln -sv $ZDIR/conf/zback_server.service /etc/systemd/system/zback_server.service
+ln -sv $ZDIR/bin/zback /usr/bin/zback
+
+echo -e "\n"
+echo "----------------------------------------------------------------------"
 echo "                       	 Setup complete"
 echo "----------------------------------------------------------------------"
-echo -e "\n"
+echo -e "\n\n\n\n"
 
 sleep 1
-clear
 echo "Ensure you have setup offsite hosts and ssh config if you will be using
 this - you will also need to seed them before offsite replication can commence.
 For more details please see the wiki page relating to Zback usage."

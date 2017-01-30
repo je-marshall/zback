@@ -1,0 +1,11 @@
+[Unit]
+Description=Zback Server Service
+After=network.target
+Requires=zfs.target
+Documentation=https://wiki.workshopit.co.uk/doku.php?id=wit:zback:config
+
+[Service]
+Type=simple
+ExecStart=/srv/zback/bin/zback server start
+ExecStop=/srv/zback/bin/zback server stop
+ExecReload=/srv/zback/bin/zback server restart

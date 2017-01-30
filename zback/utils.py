@@ -183,6 +183,35 @@ def format_destinations(destinations):
 
     return return_string.rstrip(",")
 
+def temp_send_message_client(socket, message):
+    '''
+    Opens a connection to a server/client and sends a pickled
+    message, then returns an unpickled result
+    '''
+
+    sock = socket.socket(socket.AF_UNIX)
+
+    try:
+        sock.connect(socket)
+    except socket.error:
+        raise
+
+    send_d = pickle.dumps(message)
+
+    sock.send(send_d)
+
+    data = ""
+    part = None
+
+    while part != "":
+        part = sock.recv(4096)
+        data += part
+
+    try:
+        format_data = pickle.loads(data)
+        return format_data
+    except pickle.UnpicklingError as e:
+        raise
 
 def send_message(address, port, message):
     '''
