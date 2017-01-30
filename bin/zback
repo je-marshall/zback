@@ -7,7 +7,7 @@ import socket
 import pickle
 import sys
 import signal
-from zback import server, client, utils
+from zback import server, client, utils, jobs
 
 DESC = '''Need a description for this guy'''
 DEFAULT_CONFIG = '/srv/zback/conf/zback.conf'
@@ -35,19 +35,15 @@ def main():
 
     parser = argparse.ArgumentParser(description=DESC)
 
-    parser.add_argument('component', choices=['client', 'server'],
-                        description='Choose client or server')
+    parser.add_argument('component', choices=['client', 'server'])
     parser.add_argument('action', choices=['start',
                                            'stop',
                                            'restart',
                                            'status',
                                            'configure',
-                                           'runonce'],
-                        description='Which action to perform')
-    parser.add_argument('runonce_action', choices=['snap, send, prune'], default=None,
-                        description='Only applies to runonce - which action to run once')
-    parser.add_argument('runonce_dataset', nargs='?', default=None,
-                        description='Which dataset to run action on')
+                                           'runonce'])
+    parser.add_argument('runonce_action', choices=['snap, send, prune'], default=None)
+    parser.add_argument('runonce_dataset', nargs='?', default=None)
     args = parser.parse_args()
 
     if args.component == 'client':
@@ -72,6 +68,13 @@ def client_stop(config_dict):
         sys.exit(1)
     sock.send(pickle.dumps("stop"))
     sys.exit(0)
+
+def client_runonce(config_dict, runonce_action, runonce_dataset):
+    '''
+    Runs specified action once, logging to file and the conesole
+    '''
+    pass
+
 
 def client_handler(config_dict, action, runonce_action=None, runonce_dataset=None):
     '''
