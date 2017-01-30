@@ -91,7 +91,7 @@ def monitor_handler(config_dict, args):
     elif args.type == 'prune':
         zabbix.prune(config_dict['client']['socket'])
     elif args.type == 'send':
-        zabbix.prune(config_dict['client']['socket'])
+        zabbix.send(config_dict['client']['socket'])
     else:
         print "Unkown command"
         sys.exit(1)
