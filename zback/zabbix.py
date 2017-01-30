@@ -44,25 +44,21 @@ def send(socket):
     '''
     pass
 
-    # This bit needs thinking about
+    # Quick and dirty like your mum
 
-    # format_list = []
+    format_list = [] 
+    jobs = utils.temp_send_message_client(socket, 'status')
+    send_list = [ job for job in jobs if job['name'] == 'send']
 
-    # jobs = utils.temp_send_message_client(socket)
-    # send_list = [ job for job in jobs if job['name'] == 'send']
-
-    # for job in send_list:
-    #     this_job = []
-    #     for arg in job['args']:
-    #         if isinstance(arg, dataset.Dataset):
-    #             this_job.append({'{#DSNAME}' : arg.name})
-    #         elif isinstance(arg, sender.Location):
-    #             this_job.append({'{#DSLOC}' : arg.location})
+    for job in send_list:
+        this_job = []
+        this_job.append({'{#DSNAME}' : job['args'](0).name})
+        this_job.append({'{#DSLOC}' : job['args'](1)})
         
-    #     if this_job:
-    #         format_list.append(this_job)
+        if this_job:
+            format_list.append(this_job)
 
-    # format_json(format_list)
+    format_json(format_list)
 
 def format_json(in_list):
     '''
