@@ -35,17 +35,23 @@ def main():
 
     parser = argparse.ArgumentParser(description=DESC)
 
-    parser.add_argument('component', choices=['client', 'server'])
+    parser.add_argument('component', choices=['client', 'server'],
+                        description='Choose client or server')
     parser.add_argument('action', choices=['start',
                                            'stop',
                                            'restart',
                                            'status',
                                            'configure',
-                                           'runonce'])
+                                           'runonce'],
+                        description='Which action to perform')
+    parser.add_argument('runonce_action', choices=['snap, send, prune'], default=None,
+                        description='Only applies to runonce - which action to run once')
+    parser.add_argument('runonce_dataset', nargs='?', default=None,
+                        description='Which dataset to run action on')
     args = parser.parse_args()
 
     if args.component == 'client':
-        client_handler(config_dict, args.action)
+        client_handler(config_dict, args.action, args.runonce_action, args.runonce_dataset)
     elif args.component == 'server':
         server_handler(config_dict, args.action)
     else:
@@ -67,7 +73,7 @@ def client_stop(config_dict):
     sock.send(pickle.dumps("stop"))
     sys.exit(0)
 
-def client_handler(config_dict, action):
+def client_handler(config_dict, action, runonce_action=None, runonce_dataset=None):
     '''
     Handles client actions and sets up logging
     '''

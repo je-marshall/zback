@@ -23,7 +23,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         data = self.request.recv(4096)
 
-        fmt_data = pickle.loads(str(data.rstrip()))
+        fmt_data = pickle.loads(data.rstrip())
 
         self.server.log.info("Incoming request")
 
