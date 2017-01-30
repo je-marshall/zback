@@ -60,7 +60,7 @@ def main():
     parser_runonce.set_defaults(func=runonce_handler)
 
     args = parser.parse_args()
-    args.func(args)
+    args.func(config_dict, args)
 
     # if args.component == 'client':
     #     client_handler(config_dict, args.action)
