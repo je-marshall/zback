@@ -183,7 +183,7 @@ def format_destinations(destinations):
 
     return return_string.rstrip(",")
 
-def temp_send_message_client(socket, message):
+def temp_send_message_client(client_socket, message):
     '''
     Opens a connection to a server/client and sends a pickled
     message, then returns an unpickled result
