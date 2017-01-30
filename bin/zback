@@ -81,7 +81,8 @@ def client_handler(config_dict, action):
     
     handler = logging.FileHandler(log_file)
     handler.setLevel(numeric_level)
-    handler.setFormatter(config_dict['general']['log_format'])
+    formatter = logging.Formatter(config_dict['general']['log_format'])
+    handler.setFormatter(formatter)
 
     log = logging.getLogger('zback')
     log.setLevel(numeric_level)
