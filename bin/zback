@@ -121,7 +121,7 @@ def client_stop(config_dict):
     sock.send(pickle.dumps("stop"))
     sys.exit(0)
 
-def client_handler(config_dict, action):
+def client_handler(config_dict, args):
     '''
     Handles client actions and sets up logging
     '''
@@ -129,28 +129,16 @@ def client_handler(config_dict, action):
     log_file = '{0}/log/zback-client.log'.format(config_dict['general']['zdir'])
     log = setup_logging(config_dict['client']['loglevel'], config_dict['general']['log_format'], log_file)
 
-    print action
-
-    if action == 'start':
+    if args.action == 'start':
         client_start(config_dict)   
-
-    elif action == 'stop':
+    elif args.action == 'stop':
         client_stop(config_dict)
-    
-    elif action == 'restart':
+    elif args.action == 'restart':
         client_stop(config_dict)
         client_start(config_dict)
-
-    elif action == 'status':
+    elif args.action == 'status':
         # Need to refactor the client to use AF_INET
         print "Needs to be reimplemented"
-
-    elif action == 'configure':
-        print "Needs to be implemented"
-
-    elif action == 'runonce':
-        print "Needs to be implemented"
-    
     else:
         print "Unknown command"
         sys.exit(1)
