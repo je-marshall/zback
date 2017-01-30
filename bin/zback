@@ -36,8 +36,7 @@ def main():
     parser = argparse.ArgumentParser(description=DESC)
     subparsers = parser.add_subparsers(title='subcommands')
 
-    parser.add_argument('component', choices=['client', 'server', 'monitor', 'runonce'])
-
+    parser.add_argument('component')
     parser_client = subparsers.add_parser('client')
     parser_client.add_argument('action', choices=['start',
                                                   'stop',
