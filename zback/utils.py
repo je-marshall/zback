@@ -196,9 +196,7 @@ def temp_send_message_client(client_socket, message):
     except socket.error:
         raise
 
-    send_d = pickle.dumps(message)
-
-    sock.send(send_d)
+    sock.send(message)
 
     data = ""
     part = None
