@@ -199,13 +199,13 @@ def send(this_set, location, config):
     # First channel connects to the server process on the other end and asks it to set up 
     # an mbuffer and zfs recv process, which, if successful, will return a port number
     try:
-        req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', int(config['server_port'])), src_addr=('', 0))
+        req_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', int(config['client']['server_port'])), src_addr=('', 0))
         log.debug("Opened channel to remote host {0}, requesting receive process".format(location))
         req_pickle = pickle.dumps(location.split(':')[1])
         req_chan.sendall(req_pickle)
         data = req_chan.recv(4096)
         try:
-            port = pickle.loads(int(data.rstrip()))
+            port = pickle.loads(data.rstrip())
         except Exception as e:
             log.error("Error getting port for remote receive process, aborting")
             log.debug("Received: {0}".format(data))
