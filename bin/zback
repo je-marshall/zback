@@ -42,8 +42,8 @@ def main():
                                            'status',
                                            'configure',
                                            'runonce'])
-    parser.add_argument('runonce_action', choices=['snap, send, prune'], default=None)
-    parser.add_argument('runonce_dataset', nargs='?', default=None)
+    # parser.add_argument('runonce_action', choices=['snap, send, prune'], default=None)
+    # parser.add_argument('runonce_dataset', nargs='?', default=None)
     args = parser.parse_args()
 
     if args.component == 'client':
