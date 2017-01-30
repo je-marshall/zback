@@ -192,7 +192,7 @@ def temp_send_message_client(client_socket, message):
     sock = socket.socket(socket.AF_UNIX)
 
     try:
-        sock.connect(socket)
+        sock.connect(client_socket)
     except socket.error:
         raise
 
