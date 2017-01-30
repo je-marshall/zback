@@ -52,8 +52,8 @@ def send(socket):
 
     for job in send_list:
         this_job = []
-        this_job.append({'{#DSNAME}' : job['args'](0).name})
-        this_job.append({'{#DSLOC}' : job['args'](1)})
+        this_job.append({'{#DSNAME}' : job['args'][0].name})
+        this_job.append({'{#DSLOC}' : job['args'][1]})
         
         if this_job:
             format_list.append(this_job)
