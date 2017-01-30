@@ -62,17 +62,6 @@ def main():
     args = parser.parse_args()
     args.func(config_dict, args)
 
-    # if args.component == 'client':
-    #     client_handler(config_dict, args.action)
-    # elif args.component == 'server':
-    #     server_handler(config_dict, args.action)
-    # elif args.component == 'monitor':
-    #     monitor_handler(config_dict, args.type)
-    # elif args.component == 'runonce':
-    #     runonce_handler(config_dict, args.type, args.dataset)
-    # else:
-    #     print "Invalid command, please see help"
-
 def setup_logging(level, log_format, log_file):
     '''
     Sets up logging
@@ -159,7 +148,7 @@ def server_stop(config_dict):
         sys.exit(1)
     sys.exit(0)
 
-def server_handler(config_dict, action):
+def server_handler(config_dict, args):
     '''
     Handles server actions and sets up logging
     '''
@@ -167,17 +156,14 @@ def server_handler(config_dict, action):
     log_file = '{0}/log/zback-server.log'.format(config_dict['general']['zdir'])
     log = setup_logging(config_dict['server']['loglevel'], config_dict['general']['log_format'], log_file)
 
-    if action == 'start':
+    if args.action == 'start':
         server_start(config_dict)
-
-    elif action == 'stop':
+    elif args.action == 'stop':
         server_stop(config_dict)
-
-    elif action == 'restart':
+    elif args.action == 'restart':
         server_stop(config_dict)
         server_start(config_dict)
-
-    elif action == 'status':
+    elif args.action == 'status':
         try:
             utils.send_message(config_dict['server']['address'],
                                config_dict['server']['port'],
