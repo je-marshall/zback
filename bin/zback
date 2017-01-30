@@ -7,7 +7,7 @@ import socket
 import pickle
 import sys
 import signal
-from zback import server, client, utils, jobs
+from zback import server, client, utils, jobs, zabbix
 
 DESC = '''Need a description for this guy'''
 DEFAULT_CONFIG = '/srv/zback/conf/zback.conf'
@@ -43,7 +43,7 @@ def main():
                                                   'status'])
     parser_client.set_defaults(func=client_handler)
 
-    parser_server = subparsers.add_parser('server') 
+    parser_server = subparsers.add_parser('server')
     parser_server.add_argument('action', choices=['start',
                                                   'stop',
                                                   'restart',
@@ -82,11 +82,19 @@ def setup_logging(level, log_format, log_file):
 
     return log
 
-def monitor_handler(config_dict, monitor_type):
+def monitor_handler(config_dict, args):
     '''
     Runs specified action once, logging to file and the conesole
     '''
-    print "Not currently implemented"
+    if args.type == 'snap':
+        zabbix.snap(config_dict['client']['socket'])
+    elif args.type == 'prune':
+        zabbix.prune(config_dict['client']['socket'])
+    elif args.type == 'send':
+        zabbix.prune(config_dict['client']['socket'])
+    else:
+        print "Unkown command"
+        sys.exit(1)
 
 def runonce_handler(config_dict, runonce_type, dataset):
     '''
