@@ -36,37 +36,42 @@ def main():
     parser = argparse.ArgumentParser(description=DESC)
     subparsers = parser.add_subparsers(title='subcommands')
 
-    parser.add_argument('component')
     parser_client = subparsers.add_parser('client')
     parser_client.add_argument('action', choices=['start',
                                                   'stop',
                                                   'restart',
                                                   'status'])
+    parser_client.set_defaults(func=client_handler)
+
     parser_server = subparsers.add_parser('server') 
     parser_server.add_argument('action', choices=['start',
                                                   'stop',
                                                   'restart',
                                                   'status'])
+    parser_server.set_defaults(func=server_handler)
 
     parser_monitor = subparsers.add_parser('monitor')
     parser_monitor.add_argument('type', choices=['snap', 'prune', 'send'])
+    parser_monitor.set_defaults(func=monitor_handler)
 
     parser_runonce = subparsers.add_parser('runonce')
     parser_runonce.add_argument('type', choices=['snap', 'prune', 'send'])
     parser_runonce.add_argument('dataset', nargs='?')
+    parser_runonce.set_defaults(func=runonce_handler)
 
     args = parser.parse_args()
+    args.func(args)
 
-    if args.component == 'client':
-        client_handler(config_dict, args.action)
-    elif args.component == 'server':
-        server_handler(config_dict, args.action)
-    elif args.component == 'monitor':
-        monitor_handler(config_dict, args.type)
-    elif args.component == 'runonce':
-        runonce_handler(config_dict, args.type, args.dataset)
-    else:
-        print "Invalid command, please see help"
+    # if args.component == 'client':
+    #     client_handler(config_dict, args.action)
+    # elif args.component == 'server':
+    #     server_handler(config_dict, args.action)
+    # elif args.component == 'monitor':
+    #     monitor_handler(config_dict, args.type)
+    # elif args.component == 'runonce':
+    #     runonce_handler(config_dict, args.type, args.dataset)
+    # else:
+    #     print "Invalid command, please see help"
 
 def monitor_handler(config_dict, monitor_type):
     '''
