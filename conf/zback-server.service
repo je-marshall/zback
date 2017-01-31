@@ -9,3 +9,7 @@ Type=simple
 ExecStart=/usr/bin/zback server start
 ExecStop=/usr/bin/zback server stop
 ExecReload=/usr/bin/zback server restart
+
+[Install]
+WantedBy=multi-user.target
+Alias=zback-server.service

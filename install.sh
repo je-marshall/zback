@@ -85,8 +85,8 @@ echo "                        Linking templates and scripts"
 echo "----------------------------------------------------------------------"
 
 [[ -d /etc/zabbix/zabbix_agentd.d/ ]] && ln -sv $ZDIR/conf/userparameter_zback.conf /etc/zabbix/zabbix_agentd.d/userparameter_zback.conf
-ln -sv $ZDIR/conf/zback_client.service /etc/systemd/system/zback_client.service
-ln -sv $ZDIR/conf/zback_server.service /etc/systemd/system/zback_server.service
+cp -fv $ZDIR/conf/zback-client.service /lib/systemd/system/zback-client.service
+cp -fv $ZDIR/conf/zback-server.service /lib/systemd/system/zback-server.service
 ln -sv $ZDIR/bin/zback /usr/bin/zback
 
 echo -e "\n"
