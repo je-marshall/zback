@@ -10,13 +10,13 @@ DATASET=$3
 
 # Format the job name correctly to correspond to the key
 case $2 in
-	send_job)
+	send)
 	JOB_NAME="send"
 	;;
-	prune_job)
+	prune)
 	JOB_NAME="prune"
 	;;
-	backup_job)
+	snapshot)
 	JOB_NAME="snap"
 	;;
 esac
