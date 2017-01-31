@@ -54,11 +54,14 @@ def send(socket):
         this_job = []
         this_job.append({'{#DSNAME}' : job['args'][0].name})
         this_job.append({'{#DSLOC}' : job['args'][1]})
-        
-        if this_job:
-            format_list.append(this_job)
 
-    format_json(format_list)
+        if this_job:
+            format_json(this_job)
+        
+    #     if this_job:
+    #         format_list.append(this_job)
+
+    # format_json(format_list)
 
 def format_json(in_list):
     '''
