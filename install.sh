@@ -81,10 +81,18 @@ mkdir $ZDIR/{log,run}
 
 echo -e "\n"
 echo "----------------------------------------------------------------------"
+echo "                        Setting up monitoring"
+echo "----------------------------------------------------------------------"
+
+[[ -d /etc/zabbix/zabbix_agentd.d/ ]] && ln -sfv $ZDIR/conf/userparameter_zback.conf /etc/zabbix/zabbix_agentd.d/userparameter_zback.conf && \
+echo "zabbix ALL = NOPASSWD:/usr/bin/zback,/sbin/zfs" >> /etc/sudoers && \
+service zabbix-agent restart
+
+echo -e "\n"
+echo "----------------------------------------------------------------------"
 echo "                        Linking templates and scripts"
 echo "----------------------------------------------------------------------"
 
-[[ -d /etc/zabbix/zabbix_agentd.d/ ]] && ln -sv $ZDIR/conf/userparameter_zback.conf /etc/zabbix/zabbix_agentd.d/userparameter_zback.conf
 cp -fv $ZDIR/conf/zback-client.service /lib/systemd/system/zback-client.service
 cp -fv $ZDIR/conf/zback-server.service /lib/systemd/system/zback-server.service
 ln -sfv $ZDIR/bin/zback /usr/bin/zback

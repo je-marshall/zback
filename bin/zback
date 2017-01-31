@@ -86,12 +86,14 @@ def monitor_handler(config_dict, args):
     '''
     Runs specified action once, logging to file and the conesole
     '''
+
+    client_sock = "{0}{1}".format(config_dict['general']['zdir'], config_dict['client']['socket'])
     if args.type == 'snap':
-        zabbix.snap(config_dict['client']['socket'])
+        zabbix.snap(client_sock)
     elif args.type == 'prune':
-        zabbix.prune(config_dict['client']['socket'])
+        zabbix.prune(client_sock)
     elif args.type == 'send':
-        zabbix.send(config_dict['client']['socket'])
+        zabbix.send(client_sock)
     else:
         print "Unkown command"
         sys.exit(1)
