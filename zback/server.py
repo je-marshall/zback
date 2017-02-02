@@ -2,6 +2,7 @@ import socket
 import threading
 import Queue
 import SocketServer
+import socket
 import pickle
 import time
 import sys
@@ -31,7 +32,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             try:
                 this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
                 if this_dataset:
-                    this_sock = utils.get_open_port()
+                    this_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     self.receive(this_sock, this_dataset)
             except IndexError:
                 self.server.log.debug("Non dataset request")
@@ -46,6 +47,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         self.log.info("Receiving stream for dataset {0}".format(dataset.name))
 
         # Moved this logic to just before it is needed
+        sock.bind(("", 0))
         port = sock.getsockname()[1]
         sock.close()
 
