@@ -31,7 +31,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             try:
                 this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
                 if this_dataset:
-                    this_port = utils.get_open_port()
+                    this_sock = utils.get_open_port()
                     self.receive(this_port, this_dataset)
             except IndexError:
                 self.server.log.debug("Non dataset request")
@@ -39,11 +39,15 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 self.server.log.info("Received shutdown command")
                 self.server.server_close()
 
-    def receive(self, port, dataset):
+    def receive(self, sock, dataset):
 
         self.log = logging.getLogger("zback.server")
 
         self.log.info("Receiving stream for dataset {0}".format(dataset.name))
+
+        # Moved this logic to just before it is needed
+        port = sock.getsockname()[1]
+        sock.close()
 
         pipe_cmd = 'mbuffer -l /tmp/zback-{0}.log -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
@@ -53,8 +57,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                                     stderr=subprocess.PIPE)
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
-            self.log.debug("Started pipe process {0} with pid {1}".format(pipe_cmd, pipe.pid))
-            self.log.debug("Started receive process {0} with pid {1}".format(recv_cmd, recv.pid))
+            self.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
+            self.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
 
         except subprocess.CalledProcessError as e:
             self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
