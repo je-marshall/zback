@@ -248,7 +248,7 @@ def get_open_port():
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("", 0))
-    s.listen(1)
+    s.listen(0)
     # This has been modified to return the entire socket, as there were
     # issues with the port being given out multiple times.
     # port = s.getsockname()[1]
