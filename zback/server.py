@@ -45,7 +45,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         self.log.info("Receiving stream for dataset {0}".format(dataset.name))
 
-        pipe_cmd = 'mbuffer -I 127.0.0.1:{0}'.format(port)
+        pipe_cmd = 'mbuffer -l /tmp/zback-{0}.log -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
