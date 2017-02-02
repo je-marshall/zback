@@ -32,7 +32,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
                 if this_dataset:
                     this_sock = utils.get_open_port()
-                    self.receive(this_port, this_dataset)
+                    self.receive(this_sock, this_dataset)
             except IndexError:
                 self.server.log.debug("Non dataset request")
             if fmt_data == 'shutdown':
