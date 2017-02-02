@@ -209,6 +209,9 @@ def send(this_set, location, config):
         data = req_chan.recv(4096)
         try:
             port = pickle.loads(data.rstrip())
+            if port == 'ERROR':
+                log.debug("Error creating mbuffer process on server, check logs")
+                raise RuntimeError("Could not transfer snapshot, check server logs")
         except Exception as e:
             log.error("Error getting port for remote receive process, aborting")
             log.debug("Received: {0}".format(data))

@@ -49,32 +49,52 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         # Moved this logic to just before it is needed
         sock.bind(("", 0))
         port = sock.getsockname()[1]
-        sock.close()
 
-        pipe_cmd = 'mbuffer -l /tmp/zback-{0}.log -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
-            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-            recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
-
-            self.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
-            self.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
-
+            recv = subprocess.Popen(recv_cmd.split(), stdin=subprocess.PIPE)
+            self.log.debug("Started receive process for dataset {0} with PID {1}".format(dataset.name, recv.pid))
         except subprocess.CalledProcessError as e:
-            self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
+            self.server.log.error("Error starting receive process for dataset {0}".format(dataset.name))
             self.server.log.debug(e)
             try:
-                pipe.kill()
                 recv.kill()
+                self.request.sendall(pickle.dumps('ERROR'))
+                sock.close()
+                return
             except:
-                pass
-            raise
+                return
+
+
+        # Redoing this bit as mbuffer was being a dick
+        # pipe_cmd = 'mbuffer -l /tmp/zback-{0}.log -I 127.0.0.1:{0}'.format(port)
+        # recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
+
+        # try:
+        #     pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
+        #                             stderr=subprocess.PIPE)
+        #     recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
+
+        #     self.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
+        #     self.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
+
+        # except subprocess.CalledProcessError as e:
+        #     self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
+        #     self.server.log.debug(e)
+        #     try:
+        #         pipe.kill()
+        #         recv.kill()
+        #     except:
+        #         pass
+        #     raise
 
         self.request.sendall(pickle.dumps((port)))
-
+        sock.listen(1)
         while recv.returncode is None:
+            data = sock.recv(1024)
+            if not data: break
+            recv.stdin.write(data)
             recv.poll()
         if recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
