@@ -95,7 +95,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         while recv.returncode is None:
             data = conn.recv(4096)
             recv.stdin.write(data)
-            recv.stdout.readline()
+            reply = recv.stdout.readline()
+            con.sendall(reply)
             recv.poll()
         if recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
