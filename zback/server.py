@@ -93,9 +93,10 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         sock.listen(1)
         conn, addr = sock.accept()
         while recv.returncode is None:
-            data = conn.recv(1024)
+            data = conn.recv(4096)
             if not data: break
             recv.stdin.write(data)
+            recv.stdout.readline()
             recv.poll()
         if recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
