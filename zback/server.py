@@ -92,6 +92,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         self.request.sendall(pickle.dumps((port)))
         sock.listen(1)
         conn, addr = sock.accept()
+        if conn:
+            self.server.log.debug("Accepted connection from remote mbuffer command on port {0}".format(port))
         while recv.returncode is None:
             data = conn.recv(4096)
             recv.stdin.write(data)
