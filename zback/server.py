@@ -32,6 +32,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             try:
                 this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
                 if this_dataset:
+                    self.server.log.debug("Request to receive snapshot for dataset {0}".format(this_dataset.name))
                     this_port = utils.get_open_port(self.server.reserved_ports)
                     self.server.reserved_ports.append(this_port)
                     try:
@@ -48,9 +49,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
     def receive(self, port, dataset):
 
-        self.log = logging.getLogger("zback.server")
-
-        self.log.info("Receiving stream for dataset {0}".format(dataset.name))
+        self.server.log.info("Beginning receive processes for dataset {0}, port number {1}".format(dataset.name, port))
 
 
         # Redoing this bit as mbuffer was being a dick
@@ -62,8 +61,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                                     stderr=subprocess.PIPE)
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
-            self.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
-            self.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
+            self.server.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
+            self.server.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
 
         except subprocess.CalledProcessError as e:
             self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
