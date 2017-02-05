@@ -353,7 +353,9 @@ def get_open_port(reserved_ports):
             sock.bind(("", random_port))
         except socket.error:
             continue
-
+        
+        # Added a shutdown to make sure the port is free
+        sock.shutdown()
         sock.close()
         open_port = random_port
     
