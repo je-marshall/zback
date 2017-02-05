@@ -32,79 +32,97 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             try:
                 this_dataset = [ds for ds in self.server.datasets if ds.name == fmt_data][0]
                 if this_dataset:
-                    this_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.receive(this_sock, this_dataset)
+                    this_port = utils.get_open_port(self.server.reserved_ports)
+                    self.server.reserved_ports.append(this_port)
+                    try:
+                        self.receive(this_port, this_dataset)
+                    except:
+                        self.server.log.error("Failed to receive snapshot for dataset {0}".format(this_dataset.name))
+                    finally:
+                        self.server.reserved_ports.remove(this_port)
             except IndexError:
                 self.server.log.debug("Non dataset request")
             if fmt_data == 'shutdown':
                 self.server.log.info("Received shutdown command")
                 self.server.server_close()
 
-    def receive(self, sock, dataset):
+    def receive(self, port, dataset):
 
         self.log = logging.getLogger("zback.server")
 
         self.log.info("Receiving stream for dataset {0}".format(dataset.name))
 
-        # Moved this logic to just before it is needed
-        sock.bind(("", 0))
-        port = sock.getsockname()[1]
 
+        # Redoing this bit as mbuffer was being a dick
+        pipe_cmd = 'mbuffer -l /tmp/zback-{0}.log -I 127.0.0.1:{0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
-            recv = subprocess.Popen(recv_cmd.split(), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            self.log.debug("Started receive process for dataset {0} with PID {1}".format(dataset.name, recv.pid))
+            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
+
+            self.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
+            self.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
+
         except subprocess.CalledProcessError as e:
-            self.server.log.error("Error starting receive process for dataset {0}".format(dataset.name))
+            self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
             self.server.log.debug(e)
             try:
+                pipe.kill()
                 recv.kill()
-                self.request.sendall(pickle.dumps('ERROR'))
-                sock.close()
-                return
             except:
-                return
+                pass
+            raise
 
+        self.request.sendall(pickle.dumps(port))
 
-        # Redoing this bit as mbuffer was being a dick
-        # pipe_cmd = 'mbuffer -l /tmp/zback-{0}.log -I 127.0.0.1:{0}'.format(port)
-        # recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
-
-        # try:
-        #     pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
-        #                             stderr=subprocess.PIPE)
-        #     recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
-
-        #     self.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
-        #     self.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
-
-        # except subprocess.CalledProcessError as e:
-        #     self.server.log.error("Error starting receive processes for dataset {0}".format(dataset.name))
-        #     self.server.log.debug(e)
-        #     try:
-        #         pipe.kill()
-        #         recv.kill()
-        #     except:
-        #         pass
-        #     raise
-
-        self.request.sendall(pickle.dumps((port)))
-        sock.listen(1)
-        conn, addr = sock.accept()
-        if conn:
-            self.server.log.debug("Accepted connection from remote mbuffer command on port {0}".format(port))
         while recv.returncode is None:
-            data = conn.recv(4096)
-            recv.stdin.write(data)
-            reply = recv.stdout.readline()
-            conn.sendall(reply)
             recv.poll()
         if recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
             self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
             self.server.log.debug(recv.returncode)
+
+
+        # # Moved this logic to just before it is needed
+        # sock.bind(("", 0))
+        # port = sock.getsockname()[1]
+
+        # recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
+
+        # try:
+        #     recv = subprocess.Popen(recv_cmd.split(), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        #     self.log.debug("Started receive process for dataset {0} with PID {1}".format(dataset.name, recv.pid))
+        # except subprocess.CalledProcessError as e:
+        #     self.server.log.error("Error starting receive process for dataset {0}".format(dataset.name))
+        #     self.server.log.debug(e)
+        #     try:
+        #         recv.kill()
+        #         self.request.sendall(pickle.dumps('ERROR'))
+        #         sock.close()
+        #         return
+        #     except:
+        #         return
+
+
+        # self.request.sendall(pickle.dumps((port)))
+        # sock.listen(1)
+        # conn, addr = sock.accept()
+        # if conn:
+        #     self.server.log.debug("Accepted connection from remote mbuffer command on port {0}".format(port))
+        # while recv.returncode is None:
+        #     data = conn.recv(4096)
+        #     recv.stdin.write(data)
+        #     reply = recv.stdout.readline()
+        #     conn.sendall(reply)
+        #     recv.poll()
+        # if recv.returncode == 0:
+        #     self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
+        # else:
+        #     self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
+        #     self.server.log.debug(recv.returncode)
 
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
@@ -120,6 +138,7 @@ class ZbackServer(object):
         self.log = logging.getLogger('zback.server')
         self.scheduler = BackgroundScheduler()
         self.server = None
+        self.reserved_ports = []
 
     def refresh_setlist(self):
         '''

@@ -4,6 +4,7 @@ import Queue
 import socket
 import pickle
 import ConfigParser
+import random
 import subprocess
 import datetime
 import logging
@@ -334,3 +335,28 @@ def refresh_properties():
     snapshot_q.join()
 
     return set_list
+
+
+def get_open_port(reserved_ports):
+    '''
+    Returns an open port within a large, non-ephemeral range
+    '''
+
+    open_port = False
+
+    while not open_port:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            random_port = random.randint(28672, 32768)
+            if random_port in reserved_ports:
+                continue
+            sock.bind(("", random_port))
+        except socket.error:
+            continue
+
+        sock.close()
+        open_port = random_port
+    
+    return open_port
+
+
