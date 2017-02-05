@@ -35,6 +35,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                     self.server.log.debug("Request to receive snapshot for dataset {0}".format(this_dataset.name))
                     this_port = utils.get_open_port(self.server.reserved_ports)
                     self.server.reserved_ports.append(this_port)
+                    # Inserted sleep to allow port to have closed properly
+                    time.sleep(1)
                     try:
                         self.receive(this_port, this_dataset)
                     except:
@@ -73,6 +75,9 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             except:
                 pass
             raise
+
+        # Inserted second timeout to allow mbuffer process to initialise
+        time.sleep(1)
 
         self.request.sendall(pickle.dumps(port))
 
