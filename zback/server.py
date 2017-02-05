@@ -137,7 +137,6 @@ class ZbackServer(object):
         self.log = logging.getLogger('zback.server')
         self.scheduler = BackgroundScheduler()
         self.server = None
-        self.reserved_ports = []
 
     def refresh_setlist(self):
         '''
@@ -170,6 +169,7 @@ class ZbackServer(object):
         self.server = ThreadedTCPServer((srv_host, srv_port), ThreadedTCPRequestHandler)
         self.refresh_setlist()
         self.server.log = self.log
+        self.server.reserved_ports = []
 
         server_thread = threading.Thread(target=self.server.serve_forever)
         server_thread.daemon = True
