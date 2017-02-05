@@ -1,4 +1,5 @@
 from operator import itemgetter
+import socket
 import pickle
 import paramiko
 import subprocess
@@ -206,7 +207,12 @@ def send(this_set, location, config):
         log.debug("Opened channel to remote host {0}, requesting receive process".format(location))
         req_pickle = pickle.dumps(location.split(':')[1])
         req_chan.sendall(req_pickle)
-        data = req_chan.recv(4096)
+        # Timeout
+        req_chan.settimeout(30.0)
+        try:
+            data = req_chan.recv(4096)
+        except socket.timeout:
+            log.error("Waited too long for server to respond to request for dataset {0}, exiting".format(dataset.name))
         try:
             port = pickle.loads(data.rstrip())
             if port == 'ERROR':
