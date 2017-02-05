@@ -210,9 +210,12 @@ def send(this_set, location, config):
         # Timeout
         req_chan.settimeout(30.0)
         try:
-            data = req_chan.recv(4096)
+            data = False
+            while not data:
+                data = req_chan.recv(4096)
         except socket.timeout:
             log.error("Waited too long for server to respond to request for dataset {0}, exiting".format(this_set.name))
+            raise RuntimeError("Timed out waiting for server")
         try:
             port = pickle.loads(data.rstrip())
             if port == 'ERROR':
