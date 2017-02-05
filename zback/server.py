@@ -53,7 +53,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
-            recv = subprocess.Popen(recv_cmd.split(), stdin=subprocess.PIPE)
+            recv = subprocess.Popen(recv_cmd.split(), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             self.log.debug("Started receive process for dataset {0} with PID {1}".format(dataset.name, recv.pid))
         except subprocess.CalledProcessError as e:
             self.server.log.error("Error starting receive process for dataset {0}".format(dataset.name))
