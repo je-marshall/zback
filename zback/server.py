@@ -39,7 +39,27 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                     time.sleep(1)
                     try:
                         self.receive(this_port, this_dataset)
-                    except:
+                        this_dataset.get_properties()
+                        for snap in this_dataset.snaplist:
+                            snap.get_properties()
+
+                        latest_snap = this_dataset.snaplist.pop()
+                        try:
+                            self.server.log.debug("Placing hold on latest snapshot {0}".format(latest_snap.name))
+                            latest_snap.hold('remote')
+                        except TypeError:
+                            self.server.log.warning("Could not place hold on snapshot {0}".format(latest_snap.name))
+                        except subprocess.CalledProcessError:
+                            self.server.log.warning("Could not place hold on snapshot {0}".format(latest_snap.name))
+                        
+                        held_snaps = [snap for snap in this_dataset.snaplist if snap.holds is not None]
+                        for snap in held_snaps:
+                            if 'remote' in snap.holds:
+                                try:
+                                    snap.unhold('remote')
+                                except:
+                                    self.server.log.warning("Could not remove hold for snapshot {0}".format(snap.name))
+                    except subprocess.CalledProcessError:
                         self.server.log.error("Failed to receive snapshot for dataset {0}".format(this_dataset.name))
                     finally:
                         self.server.reserved_ports.remove(this_port)
