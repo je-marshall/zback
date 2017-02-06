@@ -354,8 +354,6 @@ def get_open_port(reserved_ports):
         except socket.error:
             continue
         
-        # Added a shutdown to make sure the port is free
-        sock.shutdown(socket.SHUT_RDWR)
         sock.close()
         open_port = random_port
     
