@@ -109,6 +109,9 @@ class ZbackClient(object):
 
             else:
                 self.log.info("No destinations set for dataset {0}".format(this_set.name))
+        
+        # 
+        self.scheduler.add_job(self.log_state, 'cron', second=0, minute=30)
 
     def current_state(self):
         '''
@@ -126,6 +129,12 @@ class ZbackClient(object):
 
         return pickle.dumps(output_list, -1)
 
+    def log_state(self):
+        '''
+        Writes current state to log
+        '''
+        state = self.current_state()
+        self.log.debug(pickle.loads(state))
 
     def external_monitor(self, event):
         '''
