@@ -95,6 +95,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             except:
                 pass
             raise
+        except Exception as e:
+            self.server.log.error("Unhandled exception: {0}".format(e))
 
         # Inserted second timeout to allow mbuffer process to initialise
         time.sleep(1)
