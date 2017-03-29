@@ -84,13 +84,14 @@ class _UnixStreamForwardServer(SocketServer.UnixStreamServer):
     def remote_port(self):
         return self.RequestHandlerClass.remote_address[1]
 
-def _make_forward_handler(remote_address_, transport_):
+def _make_forward_handler(remote_address_, transport_, log_):
     '''
     Wrapper to assign vars
     '''
-    class Handler(_ForwardHandler):
+    class Handler(ForwardHandler):
         remote_address = remote_address_
-        transport = transport_
+        ssh_transport = transport_
+        log = log_
     return Handler        
 
 def _make_forward_server(remote_address, local_address, transport):
