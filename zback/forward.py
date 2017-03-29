@@ -118,7 +118,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
 
     def _redirect(self, chan):
         while True:
-            rqst, __, __ = select([self.request, chan], [], [], 5)
+            rqst, __, __ = select.select([self.request, chan], [], [], 5)
             if self.request in rqst:
                 data = self.request.recv(1024)
                 chan.send(data)
