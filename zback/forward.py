@@ -51,14 +51,14 @@ class _ForwardHandler(SocketServer.BaseRequestHandler):
             chan.close()
             self.request.close()
 
-class _UnixStreamForwardServer(UnixStreamServer):
+class _UnixStreamForwardServer(SocketServer.UnixStreamServer):
     '''
     Serve over UNIX domain sockets, avoiding tunneling TCP over TCP
     '''
 
     def __init__(self, *args, **kwargs):
         self.log = logging.getLogger('zback.forward')
-        UnixStreamServer.__init__(self, *args, **kwargs)
+        SocketServer.UnixStreamServer.__init__(self, *args, **kwargs)
 
     @property
     def local_address(self):
@@ -106,4 +106,3 @@ def _make_forward_server(remote_address, local_address, transport):
         return ssh_forward_server
     else:
         raise RuntimeError("Could not establish server")
-        
