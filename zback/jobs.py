@@ -3,11 +3,13 @@ import socket
 import pickle
 import paramiko
 import subprocess
+import threading
 import logging
 import time
-import dataset
 import paramiko
 import utils
+import dataset
+import forward
 
 def prune(this_set):
     '''
@@ -199,6 +201,9 @@ def send(this_set, location, config):
 
     # First channel connects to the server process on the other end and asks it to set up 
     # an mbuffer and zfs recv process, which, if successful, will return a port number
+
+    # So this is quite complicated - might be easier to replace this with a separate binary
+    # that can be called, which only returns when the mbuffer proc is fully up on the other end
     try:
         req_chan = transport.open_channel("direct-tcpip",
                                           dest_addr=('127.0.0.1',
@@ -217,8 +222,8 @@ def send(this_set, location, config):
             log.error("Waited too long for server to respond to request for dataset {0}, exiting".format(this_set.name))
             raise RuntimeError("Timed out waiting for server")
         try:
-            port = pickle.loads(data.rstrip())
-            if port == 'ERROR':
+            r_port = pickle.loads(data.rstrip())
+            if r_port == 'ERROR':
                 log.debug("Error creating mbuffer process on server, check logs")
                 raise RuntimeError("Could not transfer snapshot, check server logs")
         except Exception as e:
@@ -233,39 +238,64 @@ def send(this_set, location, config):
         log.debug(e)
         ssh.close()
         raise RuntimeError("Channel open failed")
-    
-    # Second channel is the one we will be forwarding the zfs send across
+
+    l_port = utils.get_open_port()
+
     try:
-        forward_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
-        log.debug("Opened channel to remote host {0}".format(location))
-    except paramiko.SSHException as e:
-        log.error("Failed to open forwarding channel to remote host {0}".format(location))
+        forward_handler = forward._make_forward_handler(('127.0.0.1', r_port), transport, log)
+        forward_server = forward.TCPServer(('127.0.0.1', l_port), forward_handler)
+        server_thread = threading.Thread(target=forward_server.serve_forever)
+        server_thread.start()
+    except Exception as e:
         log.debug(e)
         ssh.close()
-        raise RuntimeError("Channel open failed")
+        raise RuntimeError("Failed to open forwarding channel")
+
+    # # Second channel is the one we will be forwarding the zfs send across
+    # try:
+    #     forward_chan = transport.open_channel("direct-tcpip", dest_addr=('127.0.0.1', port), src_addr=('', 0))
+    #     log.debug("Opened channel to remote host {0}".format(location))
+    # except paramiko.SSHException as e:
+    #     log.error("Failed to open forwarding channel to remote host {0}".format(location))
+    #     log.debug(e)
+    #     ssh.close()
+    #     raise RuntimeError("Channel open failed")
 
     log.debug("Starting send process")
 
     send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
+    buff_cmd = 'mbuffer -O 127.0.0.1:{0}'.format(l_port)
 
     send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
+    buff = subprocess.Popen(buff_cmd.split(), stdin=send.stdout)
 
-    # Forward the data across the channel until the local send has finished
-    while send.returncode is None:
-        send.poll()
-        for line in send.stdout:
-            forward_chan.send(line)
-    
-    # Check the returncode to see if anything went awry
-    if send.returncode == 0:
-        forward_chan.close()
+    while buff.returncode is None:
+        buff.poll()
+
+    if buff.returncode == 0:
+        ssh.close()
+        log.info("Send successful for dataset {0}".format(this_set.name))
     else:
         log.debug("Sending snapshot {0} failed with returncode {1}".format(
             latest_local.name, send.returncode))
         ssh.close()
         raise RuntimeError("Send failed")
 
-    log.info("Send successful for dataset {0}".format(this_set.name))
+    # # Forward the data across the channel until the local send has finished
+    # while send.returncode is None:
+    #     send.poll()
+    #     for line in send.stdout:
+    #         forward_chan.send(line)
+    
+    # # Check the returncode to see if anything went awry
+    # if send.returncode == 0:
+    #     forward_chan.close()
+    # else:
+    #     log.debug("Sending snapshot {0} failed with returncode {1}".format(
+    #         latest_local.name, send.returncode))
+    #     ssh.close()
+    #     raise RuntimeError("Send failed")
+
 
     # If snapshot sent successfully, put a hold on it
 
