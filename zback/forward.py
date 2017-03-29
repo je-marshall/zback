@@ -115,10 +115,6 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
     Base handler for tunnel connections
     '''
 
-    remote_address = self.remote_address
-    ssh_transport = self.ssh_transport
-    log = self.log
-
     def _redirect(self, chan):
         while True:
             rqst, __, __ = select([self.request, chan], [], [], 5)
