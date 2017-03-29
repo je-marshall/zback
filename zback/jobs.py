@@ -239,7 +239,7 @@ def send(this_set, location, config):
         ssh.close()
         raise RuntimeError("Channel open failed")
 
-    l_port = utils.get_open_port()
+    l_port = utils.get_open_port([])
 
     try:
         forward_handler = forward._make_forward_handler(('127.0.0.1', r_port), transport, log)
