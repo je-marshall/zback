@@ -106,3 +106,56 @@ def _make_forward_server(remote_address, local_address, transport):
         return ssh_forward_server
     else:
         raise RuntimeError("Could not establish server")
+
+
+## So this is how I think it should work
+
+class ForwardHandler(SocketServer.BaseRequestHandler):
+    '''
+    Base handler for tunnel connections
+    '''
+
+    remote_address = None
+    ssh_transport = None
+    log = None
+
+    def _redirect(self, chan):
+        while True:
+            rqst, __, __ = select([self.request, chan], [], [], 5)
+            if self.request in rqst:
+                data = self.request.recv(1024)
+                chan.send(data)
+                if len(data) == 0:
+                        break
+            if chan in rqst:
+                data = chan.recv(1024)
+                self.request.send(data)
+                if len(data) == 0:
+                        break
+
+    def handle(self):
+        src_address = self.request.getpeername()
+
+        try:
+            chan = self.ssh_transport.open_channel(
+                kind='direct-tcpip',
+                dest_addr=self.remote_address,
+                src_addr=src_address,
+                timeout=10
+            )
+        except paramiko.SSHException:
+            raise
+
+        try:
+            self._redirect(chan)
+        except socket.error:
+            pass
+        except Exception as e:
+            self.log.error(e)
+
+        finally:
+            chan.close()
+            self.request.close()
+
+class TCPServer(SocketServer.TCPServer):
+    pass
