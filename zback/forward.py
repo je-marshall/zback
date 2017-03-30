@@ -23,13 +23,11 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
         while True:
             rqst, __, __ = select.select([self.request, chan], [], [], 5)
             if self.request in rqst:
-                self.log.debug("Receveived request from local side")
                 data = self.request.recv(1024)
                 chan.send(data)
                 if len(data) == 0:
                         break
             if chan in rqst:
-                self.log.debug("Recevied request from remote side")
                 data = chan.recv(1024)
                 self.request.send(data)
                 if len(data) == 0:
