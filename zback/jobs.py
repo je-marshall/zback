@@ -263,25 +263,32 @@ def send(this_set, location, config):
     #     raise RuntimeError("Channel open failed")
 
     log.debug("Starting send process")
+    print latest_remote_fmt
+    print latest_local.name
 
-    send_cmd = 'zfs send -i {0}@{1}'.format(latest_remote_fmt, latest_local.name)
-    buff_cmd = 'mbuffer -q -O 127.0.0.1:{0}'.format(l_port)
+    try:
+        send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
+        buff_cmd = 'mbuffer -q -O 127.0.0.1:{0}'.format(l_port)
 
-    send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
-    buff = subprocess.Popen(buff_cmd.split(), stdin=send.stdout)
+        send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
+        buff = subprocess.Popen(buff_cmd.split(), stdin=send.stdout)
 
-    while send.returncode is None:
-        send.poll()
+        while send.returncode is None:
+            send.poll()
 
-    if send.returncode == 0:
-        buff.kill()
-        ssh.close()
-        log.info("Send successful for dataset {0}".format(this_set.name))
-    else:
-        log.debug("Sending snapshot {0} failed with returncode {1}".format(
-            latest_local.name, send.returncode))
-        ssh.close()
-        raise RuntimeError("Send failed")
+        if send.returncode == 0:
+            buff.kill()
+            ssh.close()
+            log.info("Send successful for dataset {0}".format(this_set.name))
+        else:
+            log.debug("Sending snapshot {0} failed with returncode {1}".format(
+                latest_local.name, send.returncode))
+            ssh.close()
+            raise RuntimeError("Send failed")
+    except subprocess.CalledProcessError as e:
+            log.debug(e)
+            raise RuntimeError("Command failed")
+
 
     # # Forward the data across the channel until the local send has finished
     # while send.returncode is None:
