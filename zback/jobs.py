@@ -245,6 +245,7 @@ def send(this_set, location, config):
         forward_handler = forward._make_forward_handler(('127.0.0.1', r_port), transport, log)
         forward_server = forward.TCPServer(('127.0.0.1', l_port), forward_handler)
         server_thread = threading.Thread(target=forward_server.serve_forever)
+        log.debug("Opened forward tunnel to remote host {0}".format(location))
         server_thread.start()
     except Exception as e:
         log.debug(e)
@@ -264,15 +265,16 @@ def send(this_set, location, config):
     log.debug("Starting send process")
 
     send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
-    buff_cmd = 'mbuffer -O 127.0.0.1:{0}'.format(l_port)
+    buff_cmd = 'mbuffer -l /dev/null -O 127.0.0.1:{0}'.format(l_port)
 
     send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
     buff = subprocess.Popen(buff_cmd.split(), stdin=send.stdout)
 
-    while buff.returncode is None:
-        buff.poll()
+    while send.returncode is None:
+        send.poll()
 
-    if buff.returncode == 0:
+    if send.returncode == 0:
+        buff.kill()
         ssh.close()
         log.info("Send successful for dataset {0}".format(this_set.name))
     else:
