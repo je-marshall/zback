@@ -4,7 +4,7 @@ import socket
 import SocketServer
 import logging
 
-def _make_forward_handler(remote_address_, transport_, log_):
+def make_forward_handler(remote_address_, transport_, log_):
     '''
     Wrapper to assign vars
     '''
@@ -23,11 +23,13 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
         while True:
             rqst, __, __ = select.select([self.request, chan], [], [], 5)
             if self.request in rqst:
+                self.log.debug("Receveived request from local side")
                 data = self.request.recv(1024)
                 chan.send(data)
                 if len(data) == 0:
                         break
             if chan in rqst:
+                self.log.debug("Recevied request from remote side")
                 data = chan.recv(1024)
                 self.request.send(data)
                 if len(data) == 0:
@@ -37,6 +39,7 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
         src_address = self.request.getpeername()
 
         try:
+            self.log.debug("Opening channel from {0} to {1}".format(src_address, self.remote_address))
             chan = self.ssh_transport.open_channel(
                 kind='direct-tcpip',
                 dest_addr=self.remote_address,
