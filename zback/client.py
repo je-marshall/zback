@@ -111,7 +111,7 @@ class ZbackClient(object):
                 self.log.info("No destinations set for dataset {0}".format(this_set.name))
         
         # 
-        self.scheduler.add_job(self.log_state, 'cron', second=0, minute=30)
+        #self.scheduler.add_job(self.log_state, 'cron', second=0, minute=30)
 
     def current_state(self):
         '''
