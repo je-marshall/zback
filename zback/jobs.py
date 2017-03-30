@@ -270,6 +270,9 @@ def send(this_set, location, config):
         send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
         buff_cmd = 'mbuffer -q -O 127.0.0.1:{0}'.format(l_port)
 
+        log.debug(send_cmd)
+        log.debug(buff_cmd)
+
         send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
         buff = subprocess.Popen(buff_cmd.split(), stdin=send.stdout)
 
