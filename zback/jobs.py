@@ -282,8 +282,7 @@ def send(this_set, location, config):
         while buff.returncode is None:
             buff.poll()
 
-        if send.returncode == 0:
-            buff.kill()
+        if send.returncode == 0 and buff.returncode == 0:
             ssh.close()
             log.info("Send successful for dataset {0}".format(this_set.name))
         else:
