@@ -279,6 +279,9 @@ def send(this_set, location, config):
         while send.returncode is None:
             send.poll()
 
+        while buff.returncode is None:
+            buff.poll()
+
         if send.returncode == 0:
             buff.kill()
             ssh.close()
