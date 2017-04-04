@@ -243,7 +243,7 @@ def send(this_set, location, config):
 
     try:
         forward_handler = forward.make_forward_handler(('127.0.0.1', r_port), transport, log)
-        forward_server = forward.TCPServer(('127.0.0.1', l_port), forward_handler)
+        forward_server = forward.TCPServer(('127.0.0.1', l_port), forward_handler, log)
         server_thread = threading.Thread(target=forward_server.handle_request)
         log.debug("Opened forward tunnel to remote host {0}".format(location))
         server_thread.start()
