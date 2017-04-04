@@ -103,9 +103,13 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         self.request.sendall(pickle.dumps(port))
 
+        while pipe.returncode is None:
+            pipe.poll()
+
         while recv.returncode is None:
-            recv.poll()
-        if recv.returncode == 0:
+            recv.poll
+
+        if pipe.returncode == 0 and recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
             self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
