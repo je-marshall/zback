@@ -244,7 +244,7 @@ def send(this_set, location, config):
     try:
         forward_handler = forward.make_forward_handler(('127.0.0.1', r_port), transport, log)
         forward_server = forward.TCPServer(('127.0.0.1', l_port), forward_handler)
-        server_thread = threading.Thread(target=forward_server.serve_forever)
+        server_thread = threading.Thread(target=forward_server.handle_request)
         log.debug("Opened forward tunnel to remote host {0}".format(location))
         server_thread.start()
     except Exception as e:
@@ -268,7 +268,7 @@ def send(this_set, location, config):
 
     try:
         send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
-        buff_cmd = 'mbuffer -q -O 127.0.0.1:{0}'.format(l_port)
+        buff_cmd = 'mbuffer -l /tmp/zback-client-{0}.log -O 127.0.0.1:{0}'.format(l_port)
 
         log.debug(send_cmd)
         log.debug(buff_cmd)
