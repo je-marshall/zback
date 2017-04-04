@@ -61,10 +61,8 @@ class ForwardHandler(SocketServer.BaseRequestHandler):
 class TCPServer(SocketServer.TCPServer):
     timeout = 5
 
-    def __init__(self, server_address, RequestHandlerClass, log):
-        self.log = log
+    def __init__(self, server_address, RequestHandlerClass):
         SocketServer.TCPServer.__init__(self, server_address, RequestHandlerClass)
 
     def handle_timeout(self):
-        self.log("Timeout reached, closing forward tunnel server")
         self.server_close()
