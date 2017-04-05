@@ -83,8 +83,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
-            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
+            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE)
             recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
             self.server.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
