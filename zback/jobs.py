@@ -266,7 +266,8 @@ def send(this_set, location, config):
 
     try:
         send_cmd = 'zfs send -i {0} {1}'.format(latest_remote_fmt, latest_local.name)
-        buff_cmd = 'mbuffer -l /tmp/zback-client-{0}.log -O 127.0.0.1:{0}'.format(l_port)
+        buff_cmd = 'nc 127.0.0.1 {0}'.format(l_port)
+        # buff_cmd = 'mbuffer -l /tmp/zback-client-{0}.log -O 127.0.0.1:{0}'.format(l_port)
 
         log.debug(send_cmd)
         log.debug(buff_cmd)
@@ -282,13 +283,17 @@ def send(this_set, location, config):
             buff.poll()
 
         if send.returncode == 0 and buff.returncode == 0:
-            confirm_data = pickle.loads(req_chan.recv(4096))
-            if confirm_data == 'SUCCESS':
-                ssh.close()
-                log.info("Send successful for dataset {0}".format(this_set.name))
-            else:
-                ssh.close()
-                log.error("Remote receive failed for dataset {0} to destination {1}".format(this_set.name, location))
+            try:
+                confirm_data = pickle.loads(req_chan.recv(4096))
+                if confirm_data == 'SUCCESS':
+                    ssh.close()
+                    log.info("Send successful for dataset {0}".format(this_set.name))
+                else:
+                    ssh.close()
+                    log.error("Remote receive failed for dataset {0} to destination {1}".format(this_set.name, location))
+            except socket.timeout:
+                log.debug("Failed to receive response from destination {0} for dataset {1}".format(location, this_set.name))
+                raise RuntimeError("Cannot confirm send successful")
         else:
             log.debug("Sending snapshot {0} failed with returncode {1}".format(
                 latest_local.name, send.returncode))

@@ -40,8 +40,6 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                     try:
                         self.receive(this_port, this_dataset)
                         this_dataset.get_properties()
-                        confirm_data = pickle.dumps('SUCCESS') # this can probably be more sophisticated later
-                        self.request.sendall(confirm_data)
                         for snap in this_dataset.snaplist:
                             snap.get_properties()
 
@@ -62,8 +60,6 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                                 except:
                                     self.server.log.warning("Could not remove hold for snapshot {0}".format(snap.name))
                     except subprocess.CalledProcessError:
-                        confirm_data = pickle.dumps('FAILURE')
-                        self.request.sendall(confirm_data)
                         self.server.log.error("Failed to receive snapshot for dataset {0}".format(this_dataset.name))
                     finally:
                         self.server.reserved_ports.remove(this_port)
@@ -79,12 +75,14 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
 
         # Redoing this bit as mbuffer was being a dick
-        pipe_cmd = 'mbuffer -l /tmp/zback-mbuff-{0}.log -I 127.0.0.1:{0}'.format(port)
+        # pipe_cmd = 'mbuffer -l /tmp/zback-mbuff-{0}.log -I 127.0.0.1:{0}'.format(port)
+        pipe_cmd = 'nc -l 127.0.0.1 {0}'.format(port)
         recv_cmd = 'zfs recv -F {0}'.format(dataset.name)
 
         try:
-            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE)
-            recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout, stderr = subprocess.PIPE)
+            pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
 
             self.server.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
             self.server.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
@@ -106,13 +104,9 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         self.request.sendall(pickle.dumps(port))
 
-        while pipe.returncode is None:
-            pipe.poll()
-
         while recv.returncode is None:
-            recv.poll
-
-        if pipe.returncode == 0 and recv.returncode == 0:
+            recv.poll()
+        if recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
         else:
             self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
