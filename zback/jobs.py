@@ -271,11 +271,12 @@ def send(this_set, location, config):
         log.debug(send_cmd)
         log.debug(buff_cmd)
 
-        send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE)
+        send = subprocess.Popen(send_cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         buff = subprocess.Popen(buff_cmd.split(), stdin=send.stdout)
 
         while send.returncode is None:
             send.poll()
+            log.debug(send.stderr.readline())
 
         while buff.returncode is None:
             buff.poll()

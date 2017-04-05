@@ -84,7 +84,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         try:
             pipe = subprocess.Popen(pipe_cmd.split(), stdout=subprocess.PIPE)
-            recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout)
+            recv = subprocess.Popen(recv_cmd.split(), stdin=pipe.stdout, stderr = subprocess.PIPE)
 
             self.server.log.debug("Started pipe process {0} with pid {1} for dataset {2}".format(pipe_cmd, pipe.pid, dataset.name))
             self.server.log.debug("Started receive process {0} with pid {1} for dataset {2}".format(recv_cmd, recv.pid, dataset.name))
@@ -111,6 +111,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
 
         while recv.returncode is None:
             recv.poll
+            self.server.log.debug(recv.stderr.readline())
 
         if pipe.returncode == 0 and recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
