@@ -40,6 +40,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                     try:
                         self.receive(this_port, this_dataset)
                         this_dataset.get_properties()
+                        confirm_data = pickle.dumps('SUCCESS') # this can probably be more sophisticated later
+                        self.request.sendall(confirm_data)
                         for snap in this_dataset.snaplist:
                             snap.get_properties()
 
@@ -60,6 +62,8 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                                 except:
                                     self.server.log.warning("Could not remove hold for snapshot {0}".format(snap.name))
                     except subprocess.CalledProcessError:
+                        confirm_data = pickle.dumps('FAILURE')
+                        self.request.sendall(confirm_data)
                         self.server.log.error("Failed to receive snapshot for dataset {0}".format(this_dataset.name))
                     finally:
                         self.server.reserved_ports.remove(this_port)

@@ -231,8 +231,6 @@ def send(this_set, location, config):
             log.debug("Received: {0}".format(data))
             log.debug(e)
             raise RuntimeError("Remote receive failed")
-        finally:
-            req_chan.close()
     except paramiko.SSHException as e:
         log.error("Failed to open forwarding channel to remote host {0}".format(location))
         log.debug(e)
@@ -283,8 +281,13 @@ def send(this_set, location, config):
             buff.poll()
 
         if send.returncode == 0 and buff.returncode == 0:
-            ssh.close()
-            log.info("Send successful for dataset {0}".format(this_set.name))
+            confirm_data = pickle.loads(req_chan.recv(4096))
+            if confirm_data == 'SUCCESS':
+                ssh.close()
+                log.info("Send successful for dataset {0}".format(this_set.name))
+            else:
+                ssh.close()
+                log.error("Remote receive failed for dataset {0} to destination {1}".format(this_set.name, location))
         else:
             log.debug("Sending snapshot {0} failed with returncode {1}".format(
                 latest_local.name, send.returncode))
@@ -293,7 +296,6 @@ def send(this_set, location, config):
     except subprocess.CalledProcessError as e:
             log.debug(e)
             raise RuntimeError("Command failed")
-
 
     # # Forward the data across the channel until the local send has finished
     # while send.returncode is None:
