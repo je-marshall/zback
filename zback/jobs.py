@@ -292,6 +292,7 @@ def send(this_set, location, config):
                 else:
                     ssh.close()
                     log.error("Remote receive failed for dataset {0} to destination {1}".format(this_set.name, location))
+                    raise RuntimeError("Failed to send snapshot")
             except socket.timeout:
                 log.debug("Failed to receive response from destination {0} for dataset {1}".format(location, this_set.name))
                 raise RuntimeError("Cannot confirm send successful")
