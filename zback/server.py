@@ -108,9 +108,11 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
             recv.poll()
         if recv.returncode == 0:
             self.server.log.info("Successfully received snapshot for dataset{0}".format(dataset.name))
+            self.request.sendall(pickle.dumps('SUCCESS'))
         else:
             self.server.log.error("Error receiving snapshot for dataset {0}".format(dataset.name))
             self.server.log.debug(recv.returncode)
+            self.request.sendall(pickle.dumps('FAILURE'))
 
 
         # # Moved this logic to just before it is needed
