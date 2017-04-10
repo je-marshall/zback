@@ -245,6 +245,7 @@ def send(this_set, location, config):
         server_thread = threading.Thread(target=forward_server.handle_request)
         log.debug("Opened forward tunnel to remote host {0}".format(location))
         server_thread.start()
+        time.sleep(1)
     except Exception as e:
         log.debug(e)
         ssh.close()
