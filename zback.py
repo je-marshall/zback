@@ -354,8 +354,13 @@ class DatasetWorker(Thread):
         self.log.debug('Pruning complete')
         return 0
     def run(self):
+    '''
+    This is called by thread.start(), processes the options applied to the
+    dataset and decides what to do accordingly
+    '''
         try:
             if self.send_tag is None:
+                # No send tag specified so just snap and prune
                 self.log.debug('No send tag, snap and prune only')
                 # Simply take a snapshot, with the tag from the overall run and then
                 # prune any snapshots that need to be deleted
@@ -365,7 +370,8 @@ class DatasetWorker(Thread):
                 self._prune()
                 return 0
             else:
-                # If we're taking but not sending, go ahead and do that
+                # If we're taking but not sending on this particular run then
+                # simply go ahead and do that
                 if not self.send_tag == self.run_tag:
                     self.log.debug('Not a send run')
                     self.log.debug('Taking snapshot...')
@@ -373,9 +379,9 @@ class DatasetWorker(Thread):
                     self.log.debug('Pruning old snapshots')
                     self._prune()
                     return 0
+                # If this is a send run then we need to do a lot more work
                 self.log.debug('Checking latest local snap')
                 latest_snap = self.dataset.snaplist.pop()
-                self.log.debug(latest_snap)
                 try:
                     # Get list of destinations - if only one this list will
                     # simply consist of one element
@@ -392,7 +398,7 @@ class DatasetWorker(Thread):
                     # Do a normal run anyway
                     self.dataset.take_snap(tag=self.run_tag)
                     self._prune()
-                    raise KeyError
+                    return 1
                 # At this point we are assuming that there isn't a send in
                 # progress and we have nearly all of the info we need.
                 # First, take a snapshot, then get the new latest snapshot
@@ -425,20 +431,20 @@ class DatasetWorker(Thread):
         except KeyError as e:
             # Key error when destination not specified, need to clean up and
             # exit - technically this is a failure as it implies send has been
-            raise
+            return 1
         except IndexError as e:
             # Catch the case where there are no snapshots present for the
             # filesystem. This will require there to be a way to initialise a
             # system easily.
             # TODO - Sort out initial run
-            raise
+            return 1
         except subprocess.CalledProcessError:
             # Catch the case where either the bog standard snap or prune
             # operations fail. Note that this only covers those cases where zfs
             # functions are encountered, so this indicates cases where
             # underlying zfs is not responding correctly. This will cause an
             # error to be logged at a lower level.
-            raise
+            return 1
         finally:
             self._prune()
 
