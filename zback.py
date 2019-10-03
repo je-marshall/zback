@@ -57,11 +57,12 @@ class DatasetWorker(Thread):
     specified and then cleaning up the snapshots that result. Each run only
     considers a single tag
     '''
-    def __init__(self, dataset, run_tag, initialise):
+    def __init__(self, dataset, run_tag, initialise, prune):
         Thread.__init__(self)
         self.dataset = dataset
         self.run_tag = run_tag
         self.initialise = initialise
+        self.prune = prune
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
         self._get_send_tag()
     def _get_send_tag(self):
@@ -496,6 +497,10 @@ class DatasetWorker(Thread):
         dataset and decides what to do accordingly
         '''
         self.log.info('Beginning run with tag %s', self.run_tag)
+        if self.prune:
+            # Pruning only, no snapshotting or nuffink
+            self._prune()
+            return 0
         try:
             if self.send_tag is None:
                 # No send tag specified so just snap and prune
@@ -742,6 +747,9 @@ def main():
                         nargs=1, \
                         help='Limit to one dataset', \
                         action='store')
+    parser.add_argument('-p', '--prune', \
+                        help='Prune this tag only', \
+                        action='store_true')
     parser.add_argument('-i', '--initialise', \
                         help='Attempt to initialise destination datasets', \
                         action='store_true')
@@ -789,12 +797,14 @@ def main():
     if args.dataset:
         this_dset = [dset for dset in dsets if args.dataset in dset]
         if this_dset:
-            this_dset_run = DatasetWorker(dset, args.tag, args.initialise)
+            this_dset_run = DatasetWorker(dset, args.tag, \ 
+                                          args.initialise, args.prune)
             this_dset_run.start()
             sys.exit(0)
     else:
         for dset in disco_sets:
-            this_dset_run = DatasetWorker(dset, args.tag, args.initialise)
+            this_dset_run = DatasetWorker(dset, args.tag, \
+                                          args.initialise, args.prune)
             this_dset_run.start()
 
 if __name__ == '__main__':
