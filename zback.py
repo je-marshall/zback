@@ -645,7 +645,7 @@ class Dataset(object):
                 except subprocess.CalledProcessError as e:
                     self.log.error('Failed to clear hold on snap %s', held_snap)
                     self.log.debug(e)
-                    raise
+                    continue
     def get_snaps(self):
         CMD = ['zfs', 'list', '-H', '-t', 'snap', '-s', \
                'creation', '-o', 'name', '-r', self.name]
@@ -681,7 +681,7 @@ class Dataset(object):
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
             raise
-        return [hold.strip('\t') for hold in gethold.split('\n')]
+        return [hold.split('\t')[0] for hold in gethold.split('\n')]
     def set_prop(self, prop, value):
         CMD = ['zfs', 'set', PROP+prop+'='+value, self.name]
         try:
