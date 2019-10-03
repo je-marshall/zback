@@ -586,7 +586,6 @@ class Dataset(object):
                                                 universal_newlines=True)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.error(e.output)
             raise
         self.props = {re.sub(PROP, '', k):v for k,v in \
                      [prop.split('\t') for prop in all_props.split('\n') \
@@ -696,14 +695,6 @@ def main():
     '''
         Parse args and decide what to do
     '''
-    # Really need to figure out this logging shit
-    log = logging.getLogger('zback')
-    formatter = logging.Formatter('%(name)s::%(levelname)s: %(message)s')
-    handler = logging.StreamHandler()
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG)
-    # This needs sorting TODO
     parser = argparse.ArgumentParser(description=HELP)
     parser.add_argument('tag', \
                         nargs='?', \
@@ -734,6 +725,13 @@ def main():
     if not args.tag:
         print('Must supply tag')
         sys.exit(1)
+    if args.verbose:
+        log = logging.getLogger('zback')
+        formatter = logging.Formatter('%(name)s::%(levelname)s: %(message)s')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
+        log.setLevel(logging.INFO)
     for dset in disco_sets:
         this_dset_run = DatasetWorker(dset, args.tag)
         this_dset_run.start()
