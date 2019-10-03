@@ -216,8 +216,10 @@ class DatasetWorker(Thread):
                 self.dataset.get_snaps()
                 self._remote_send(destination)
             # Presuming the send went ok, release the send hold
+            self.log.debug('Removing send hold')
             self.dataset.release_snap(self.latest_snap, destination+':SEND')
             # Place a normal hold on the most recently sent snapshot
+            self.log.debug('Placing completed hold')
             self.dataset.hold_snap(self.latest_snap, destination)
         except Exception:
             self.dataset.release_snap(self.latest_snap, destination+':SEND')
