@@ -587,7 +587,9 @@ class Dataset(object):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
         try:
             logfile = LOG_DIR+self.name.split('/')[-1]+'.log'
+            formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s')
             handler = WatchedFileHandler(logfile)
+            handler.setFormatter(formatter)
             self.log.addHandler(handler)
         except FileNotFoundError:
             raise
@@ -724,7 +726,7 @@ def main():
     args = parser.parse_args()
     if args.verbose:
         log = logging.getLogger('zback')
-        formatter = logging.Formatter('%(name)s::%(levelname)s: %(message)s')
+        formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s')
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
         log.addHandler(handler)
