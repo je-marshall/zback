@@ -11,6 +11,7 @@ import socket
 import json
 import time
 import sys
+import os
 import re
 
 # Globals, because I'm not messing around with loading config files. If you want
@@ -22,6 +23,7 @@ DEFTAGS={'hourly' : '12', \
          'weekly' : '6', \
          'monthly' : '6'}
 ZBX_SEND=True
+LOG_DIR='/var/log/zback/'
 HELP='''
      '''
 
@@ -575,9 +577,18 @@ class Dataset(object):
     '''
     def __init__(self, name):
         self.name = name
+        self.props = None
         self._get_props()
         self.get_snaps()
+        self.log = None
+        self._setup_logging()
+    def _setup_logging(self):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
+        try:
+            handler = logging.FileHandler(LOGDIR+self.name)
+        except FileNotFoundError:
+            self.log.error('Log directory not set correctly')
+            raise
     def _get_props(self):
         CMD = ['zfs', 'get', 'all', '-H', \
                '-o', 'property,value', self.name]
@@ -595,7 +606,7 @@ class Dataset(object):
         except (AssertionError, KeyError) as e:
             self.log.debug(e)
             raise
-    def clear_holds(self):
+    def _clear_holds(self):
         '''
             Very dangerous, only really here for testing
         '''
@@ -707,14 +718,26 @@ def main():
                         help='JSON formatted list for Zabbix auto-discovery', \
                         action='store_true')
     args = parser.parse_args()
+    if args.verbose:
+        log = logging.getLogger('zback')
+        formatter = logging.Formatter('%(name)s::%(levelname)s: %(message)s')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        log.addHandler(handler)
+        log.setLevel(logging.INFO)
     dsets = []
     for dataset in get_all_datasets():
         try:
             dset = Dataset(dataset)
             dsets.append(dset)
             log.debug('Found dataset: {0}'.format(dest.name))
-        except Exception:
+        except (TypeError, AssertionError):
+            if args.verbose:
+                log.debug('No properties configured for %s, skipping', dset)            
             continue
+        except FileNotFoundError:
+            print('Logging directory not configured correctly')
+            sys.exit(1)
     if not dsets:
         print('No datasets configured, nothing to do')
         sys.exit(0)
@@ -725,13 +748,6 @@ def main():
     if not args.tag:
         print('Must supply tag')
         sys.exit(1)
-    if args.verbose:
-        log = logging.getLogger('zback')
-        formatter = logging.Formatter('%(name)s::%(levelname)s: %(message)s')
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-        log.addHandler(handler)
-        log.setLevel(logging.INFO)
     for dset in disco_sets:
         this_dset_run = DatasetWorker(dset, args.tag)
         this_dset_run.start()
