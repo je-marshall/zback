@@ -95,6 +95,7 @@ class DatasetWorker(Thread):
         try:
             remote_snap = 'zfs list -H -o name -t snap -s creation '\
                          '-r {0}'.format(dest_fmt[-1])
+            self.log.debug(remote_snap)
             rsnapout, rsnaperr = self._remote_command(remote_snap)
             # Important to constrain ourselves to only the tag we're running
             # with. Given we are at this point we can assume that this is a send
