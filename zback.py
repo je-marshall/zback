@@ -578,10 +578,10 @@ class Dataset(object):
     '''
     def __init__(self, name):
         self.name = name
-        self.log = None
-        self._setup_logging()
         self.props = None
         self._get_props()
+        self.log = None
+        self._setup_logging()
         self.get_snaps()
     def _setup_logging(self):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
@@ -598,7 +598,6 @@ class Dataset(object):
             all_props = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                 universal_newlines=True)
         except subprocess.CalledProcessError as e:
-            self.log.debug(e)
             raise
         self.props = {re.sub(PROP, '', k):v for k,v in \
                      [prop.split('\t') for prop in all_props.split('\n') \
@@ -606,7 +605,6 @@ class Dataset(object):
         try:
             assert self.props['snap']
         except (AssertionError, KeyError) as e:
-            self.log.debug(e)
             raise
     def _clear_holds(self):
         '''
@@ -713,10 +711,14 @@ def main():
                         nargs='?', \
                         help='Tag for this run', \
                         action='store')
+    parser.add_argument('-d', '--dataset', \
+                        nargs=1, \
+                        help='Limit to one dataset', \
+                        action='store')
     parser.add_argument('-v', \
                         '--verbose', \
                         action='store_true')
-    parser.add_argument('-d', '--discover', \
+    parser.add_argument('-z', '--zabbix', \
                         help='JSON formatted list for Zabbix auto-discovery', \
                         action='store_true')
     args = parser.parse_args()
@@ -740,19 +742,29 @@ def main():
         except FileNotFoundError:
             print('Logging directory not configured correctly')
             sys.exit(1)
+        except subprocess.CalledProcessError:
+            print('ZFS list command failed')
+            sys.exit(1)
     if not dsets:
         print('No datasets configured, nothing to do')
         sys.exit(0)
     disco_sets = [dset for dset in dsets if dset.props['snap'] == 'yes']
-    if args.discover:
+    if args.zabbix:
         print(json.dumps({'data':[{'#ELEMNAME':dset.name} for dset in disco_sets]}))
         sys.exit(0)
     if not args.tag:
         print('Must supply tag')
         sys.exit(1)
-    for dset in disco_sets:
-        this_dset_run = DatasetWorker(dset, args.tag)
-        this_dset_run.start()
+    if args.dataset:
+        this_dset = [dset for dset in dsets if args.dataset in dset]
+        if this_dset:
+            this_dset_run = DatasetWorker(dset, args.tag)
+            this_dset_run.start()
+            sys.exit(0)
+    else:
+        for dset in disco_sets:
+            this_dset_run = DatasetWorker(dset, args.tag)
+            this_dset_run.start()
 
 if __name__ == '__main__':
     main()
