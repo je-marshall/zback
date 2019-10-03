@@ -221,8 +221,8 @@ class DatasetWorker(Thread):
             dest_cmd = ['zfs', 'list', '-t', 'snap', '-o', 'name', \
                         '-H', '-s', 'creation', '-r',  dest_fmt[-1]]
             self.log.debug(dest_cmd)
-            latest_dest = subprocess.check_output(dest_cmd).strip('\n').split('\n', \
-                                                  universal_newlines=True).pop()
+            latest_dest = subprocess.check_output(dest_cmd, \
+                          universal_newlines=True).strip('\n').split('\n').pop()
             latest_match = [snap for snap in self.dataset.snaplist \
                             if snap.split('@')[-1] == \
                             latest_dest.split('@')[-1]].pop()
