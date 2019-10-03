@@ -88,7 +88,7 @@ class DatasetWorker(Thread):
             # Probably means the sshclient hasn't been initialised, full panic
             self.log.error(e)
             raise
-    def _get_remote_snaplist(self):
+    def _get_remote_snaplist(self, dest_fmt):
         '''
         Attempts to get the latest remote snapshot
         '''
@@ -265,7 +265,7 @@ class DatasetWorker(Thread):
         # Check latest snapshot on remote side
         self.log.debug('Checking latest remote snapshot')
         try:
-            self._get_remote_snaplist()
+            self._get_remote_snaplist(dest_fmt)
         except Exception as e:
             self.log.debug(e)
             raise
