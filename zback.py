@@ -359,6 +359,7 @@ class DatasetWorker(Thread):
         # Assuming the send went ok, need to try to hold the remote snapshot as
         # well to ensure that it does not get rotated out as well
         try:
+            self.log.debug('Holding remote snapshots')
             self._get_remote_snaplist()
             self._hold_remote_snap(self.remote_snaps.pop())
             # This presumes that the previous snapshot, prior to the most
@@ -366,7 +367,8 @@ class DatasetWorker(Thread):
             # something has gone wrong but this possibly isn't the best way of
             # handling it.
             self._release_remote_snap(self.remote_snaps.pop())
-        except Exception:
+        except Exception as e:
+            self.log.debug(e)
             raise
         self.log.debug('Send finished, closing connections')
         self.sshclient.close()
@@ -427,6 +429,7 @@ class DatasetWorker(Thread):
                 channel.send(data)
             else: 
                 break
+        self.log.debug('ssh send success')
         channel.close()
     def _prune(self):
         self.log.info('Beginning prune run')
