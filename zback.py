@@ -194,6 +194,8 @@ class DatasetWorker(Thread):
                     raise RuntimeError
         except subprocess.CalledProcessError:
             self.log.error('Error checking holds on snapshots')
+        except IndexError as e:
+            self.log.debug(e)
         try:
             # If this run is a go, put a send hold on the latest
             # snapshot and send it
@@ -555,9 +557,6 @@ class DatasetWorker(Thread):
                         self._send(destination)
                     except Exception as e:
                         self.log.debug(e)
-                        self.log.warning('Could not hold latest snapshot for %s, ' \
-                                         'assuming send in' \
-                                         'progress', self.dataset.name)
                         self.send_fail = True
                         continue
                     # Run a separate send for each destination, continuing if
