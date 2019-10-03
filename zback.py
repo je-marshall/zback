@@ -342,7 +342,7 @@ class DatasetWorker(Thread):
                                self.latest_remote.split('@')[-1]].pop()
                 self.log.debug('Latest common snapshot: %s', local_match)
                 send_cmd = ['zfs', 'send', '-c', '-i', local_match, \
-                            self.dataset.snaplist.pop()]
+                            self.dataset.snaplist[-1]]
             except IndexError as e:
                 # Implies no common snapshots between replication pair, full
                 # error, aborts
@@ -351,7 +351,7 @@ class DatasetWorker(Thread):
                                '%s', dest_fmt[-2])
                 raise
         else:
-            send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist.pop()]
+            send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist.[-1]]
         # Note that this can be modified in future to potentially incorporate
         # send and receive resuminging. This might be possible with the
         # _remote_command function
