@@ -599,9 +599,9 @@ class Dataset(object):
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
             if self.verbose:
-                log.setLevel(logging.DEBUG)
+                self.log.setLevel(logging.DEBUG)
             else:
-                log.setLevel(logging.INFO)
+                self.log.setLevel(logging.INFO)
         except FileNotFoundError:
             raise
     def _get_props(self):
