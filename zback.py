@@ -187,6 +187,14 @@ class DatasetWorker(Thread):
         is common to different protocols. 
         '''
         try:
+            for snap in self.dataset.holdlist:
+                if destination+':SEND' in self.dataset.get_holds(snap):
+                    self.log.error('Send in progress to destination %s, aborting', \
+                                   destination)
+                    raise RuntimeError
+        except subprocess.CalledProcessError
+            self.log.error('Error checking holds on snapshots')
+        try:
             # If this run is a go, put a send hold on the latest
             # snapshot and send it
             self.dataset.hold_snap(self.latest_snap, destination+':SEND')
@@ -541,18 +549,8 @@ class DatasetWorker(Thread):
                 self.send_fail = False
                 self.log.info('Beginning send runs')
                 self.dataset.get_holdlist()
+                # This whole section needs rethinking to be honest
                 for destination in dest:
-                    if self.dataset.holdlist:
-                        try:
-                            for snap in self.dataset.holdlist:
-                                holds = self.dataset.get_holds(snap)
-                                for hold in holds:
-                                    if destination+':SEND' in hold:
-                                        self.log.error('Send in progress, aborting')
-                                        continue
-                        except subprocess.CalledProcessError:
-                            self.log.error('Error getting list of held snapshots')
-                            raise
                     try:
                         self._send(destination)
                     except Exception as e:
