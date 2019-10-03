@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from logging.handlers import WatchedFileHandler
 from datetime import datetime
 from threading import Thread
 import subprocess
@@ -586,7 +587,7 @@ class Dataset(object):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
         try:
             self.log.info('Setting up logfile %s', LOG_DIR+self.name+'.log')
-            handler = logging.WatchedFileHandler(LOG_DIR+self.name+'.log')
+            handler = WatchedFileHandler(LOG_DIR+self.name+'.log')
             self.log.addHandler(handler)
         except FileNotFoundError:
             raise
