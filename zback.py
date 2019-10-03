@@ -120,6 +120,7 @@ class DatasetWorker(Thread):
             # Check how to verify if there is anything in standard error for
             # remote commands and log it to debug
             rholdout, rholderr = self._remote_command(remote_hold)
+            self.log.debug(rholderr)
         except paramiko.SSHException:
             self.log.error('Could not place hold on remote snapshot %s', snap)
             raise
@@ -233,6 +234,9 @@ class DatasetWorker(Thread):
             self.log.debug(e)
             self.log.warning('No snaphots in common for ' \
                              '%s and %s', dest_fmt[-1], self.dataset.name)
+            if not self.initialise:
+                self.log.error('Snapshots out of sync for destination %s', dest_fmt[-1])
+                raise RuntimeError('Snapshots out of sync')
             send_cmd = ['zfs', 'send', self.dataset.snaplist.pop()]
             recv_cmd = ['zfs', 'recv', '-F', dest_fmt[-1]]
         except subprocess.CalledProcessError as e:
