@@ -735,7 +735,7 @@ def main():
             log.debug('Found dataset: {0}'.format(dest.name))
         except (KeyError, AssertionError):
             if args.verbose:
-                log.debug('No properties configured for %s, skipping', dset)            
+                log.debug('No properties configured for %s, skipping', dataset)            
             continue
         except FileNotFoundError:
             print('Logging directory not configured correctly')
