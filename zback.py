@@ -797,7 +797,7 @@ def main():
     if args.dataset:
         this_dset = [dset for dset in dsets if args.dataset in dset]
         if this_dset:
-            this_dset_run = DatasetWorker(dset, args.tag, \ 
+            this_dset_run = DatasetWorker(dset, args.tag, \
                                           args.initialise, args.prune)
             this_dset_run.start()
             sys.exit(0)
