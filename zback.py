@@ -681,7 +681,7 @@ class Dataset(object):
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
             raise
-        return [hold.split('\t') for hold in gethold.split('\n')]
+        return [hold.strip('\t') for hold in gethold.split('\n')]
     def set_prop(self, prop, value):
         CMD = ['zfs', 'set', PROP+prop+'='+value, self.name]
         try:
