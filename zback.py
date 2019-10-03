@@ -235,6 +235,7 @@ class DatasetWorker(Thread):
             except subprocess.CalledProcessError:
                 self.log.error('Issue removing hold on old snapshots')
                 raise
+        self.log.debug('Send run complete for destination %s', destination)
     def _local_send(self, destination):
         self.log.info('Local send run starting')
         dest_fmt = destination.split(':')
