@@ -254,10 +254,10 @@ class DatasetWorker(Thread):
             self.log.debug(e)
             self.log.warning('No snaphots in common for ' \
                              '%s and %s', dest_fmt[-1], self.dataset.name)
-            self.log.warning('Attempting to initialise destination dataset')
             if not self.initialise:
                 self.log.error('Snapshots out of sync for destination %s', dest_fmt[-1])
                 raise RuntimeError('Snapshots out of sync')
+            self.log.warning('Attempting to initialise destination dataset')
             send_cmd = ['zfs', 'send', self.dataset.snaplist.pop()]
             recv_cmd = ['zfs', 'recv', '-F', dest_fmt[-1]]
         except subprocess.CalledProcessError as e:
