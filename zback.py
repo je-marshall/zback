@@ -240,6 +240,9 @@ class DatasetWorker(Thread):
             self.log.error('Could not check destination filesystem: ' \
                            '%s', dest_fmt[-1])
             raise
+        except Exception as e:
+            self.log.debug(e)
+            raise
         try:
             send = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, \
                                     universal_newlines=True)
