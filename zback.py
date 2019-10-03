@@ -186,6 +186,8 @@ class DatasetWorker(Thread):
         Wraps as many send functions as there are protocols. Some functionality
         is common to different protocols. 
         '''
+        # Refresh snaplist once
+        self.dataset.get_snaps()
         # Get the list of held snapshots
         try:
             self.dataset.get_holdlist()
@@ -210,10 +212,8 @@ class DatasetWorker(Thread):
             if 'local:' in destination:
                 # Need to refresh snaplist for some reason, was bugging out
                 # before...
-                self.dataset.get_snaps()
                 self._local_send(destination)
             elif 'nc:' or 'ssh:' in destination:
-                self.dataset.get_snaps()
                 self._remote_send(destination)
             # Presuming the send went ok, release the send hold
             self.log.debug('Removing send hold')
