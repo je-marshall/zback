@@ -76,7 +76,7 @@ class DatasetWorker(Thread):
         '''
         try:
             self.log.debug('Running remote command: %s', command)
-            cin, cout, cerr = self.sshclient(command)
+            cin, cout, cerr = self.sshclient.exec_command(command)
             cout_fmt = cout.read().decode()
             cerr_fmt = cerr.read().decode()
             return (cout_fmt, cerr_fmt)
