@@ -770,7 +770,7 @@ def main():
             sys.exit(0)
     else:
         for dset in disco_sets:
-            this_dset_run = DatasetWorker(dset, args.tag, initialise)
+            this_dset_run = DatasetWorker(dset, args.tag, args.initialise)
             this_dset_run.start()
 
 if __name__ == '__main__':
