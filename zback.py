@@ -190,10 +190,11 @@ class DatasetWorker(Thread):
         try:
             self.dataset.get_holdlist()
             for snap in self.dataset.holdlist:
-                hold = self.dataset.get_hold(snap)
-                if destination+':SEND' in hold:
-                    self.log.error('Send in progress, aborting')
-                    raise RuntimeError
+                holds = self.dataset.get_holds(snap)
+                for hold in holds:
+                    if destination+':SEND' in hold:
+                        self.log.error('Send in progress, aborting')
+                        raise RuntimeError
         except IndexError:
             self.log.debug('No held snapshots')
             send_holds = None
@@ -224,10 +225,11 @@ class DatasetWorker(Thread):
         # destination are present. Note that this works provided the hold list
         # has not been updated which is why the update is only ever called from
         # the beginning of the send function
-        for hold in self.dataset.holdlist:
+        for held_snap in self.dataset.holdlist:
             try:
-                if self.dataset.get_hold(hold) == destination:
-                    self.dataset.release_snap(hold, destination)
+                for hold in self.dataset.get_holds(held_snap):
+                    if hold == destination:
+                        self.dataset.release_snap(held_snap, destination)
             except subprocess.CalledProcessError:
                 self.log.error('Issue removing hold on old snapshots')
                 raise
@@ -634,8 +636,16 @@ class Dataset(object):
         '''
         # Seriously don't go doing this
         self.get_holdlist()
-        [self.release_snap(snap, self.get_hold(snap)) for snap in self.holdlist]
-        self.get_holdlist()
+        for held_snap in self.holdlist:
+            holds = self.get_holds(held_snap)
+            for hold in holds:
+                try:
+                    self.release_snap(held_snap, hold)
+                    self.get_holdlist()
+                except subprocess.CalledProcessError as e:
+                    self.log.error('Failed to clear hold on snap %s', held_snap)
+                    self.log.debug(e)
+                    raise
     def get_snaps(self):
         CMD = ['zfs', 'list', '-H', '-t', 'snap', '-s', \
                'creation', '-o', 'name', '-r', self.name]
@@ -663,7 +673,7 @@ class Dataset(object):
             raise
         self.holdlist = [snap.split('\t')[0] for snap in getholds.split('\n') \
                          if '@' in snap and int(snap.split('\t')[-2])]
-    def get_hold(self, snap):
+    def get_holds(self, snap):
         CMD = ['zfs', 'holds', '-H', snap]
         try:
             gethold = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
@@ -671,7 +681,7 @@ class Dataset(object):
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
             raise
-        return gethold.split('\t')[1]
+        return [hold.split('\t') for hold in gethold.split('\n')]
     def set_prop(self, prop, value):
         CMD = ['zfs', 'set', PROP+prop+'='+value, self.name]
         try:
