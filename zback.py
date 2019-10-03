@@ -97,6 +97,9 @@ class DatasetWorker(Thread):
         Attempts to get the latest remote snapshot
         '''
         try:
+            # Is this running too quickly to register the latest snapshot that
+            # has just been sent?
+            time.sleep(3)
             remote_snap = 'zfs list -H -o name -t snap -s creation ' \
                          '-r {0}'.format(dest_fmt[-1])
             self.log.debug(remote_snap)
