@@ -104,7 +104,7 @@ class DatasetWorker(Thread):
             self.remote_snaplist = [snap for snap in \
                                     rsnapout.rstrip('\n').split('\n') \
                                     if PROP in snap and self.run_tag in snap]
-            self.latest_remote = remote_snaplist.pop()
+            self.latest_remote = self.remote_snaplist.pop()
         except IndexError:
             self.log.debug('No remote snapshots found')
             self.latest_remote = None
