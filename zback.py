@@ -216,7 +216,7 @@ class DatasetWorker(Thread):
                 self.log.error('Issue removing hold on old snapshots')
                 raise
     def _local_send(self, destination):
-        self.log.debug('Beginning local send run')
+        self.log.info('Local send run starting')
         dest_fmt = destination.split(':')
         try:
             dest_cmd = ['zfs', 'list', '-t', 'snap', '-o', 'name', \
@@ -258,7 +258,7 @@ class DatasetWorker(Thread):
             self.log.debug(e)
             self.log.error('Error sending snapshot')
             raise
-        self.log.debug('Snapshot sent successfully')
+        self.log.info('Local send run completed successfully')
     def _remote_send(self, destination):
         '''
         Further wrapping around the case where the send is to a remote server.
@@ -267,7 +267,7 @@ class DatasetWorker(Thread):
         may consider making this more complicated but I doubt it.
         '''
         dest_fmt = destination.split(':')
-        self.log.debug('Send is to remote host, attempting to connect via ssh')
+        self.log.info('Send is to remote host, attempting to connect via ssh')
         # Try to establish an ssh connection to the remote host. Catch the many
         # wonderful possible ways this could go wrong and don't bother doing
         # anything about them as this is not our problem.
@@ -328,7 +328,7 @@ class DatasetWorker(Thread):
                             self.dataset.snaplist.pop()]
             except IndexError as e:
                 # Implies no common snapshots between replication pair, full
-                # error, abort
+                # error, aborts
                 self.log.debug(e)
                 self.log.error('Snapshots out of sync for destination ' \
                                '%s', dest_fmt[-2])
@@ -346,6 +346,7 @@ class DatasetWorker(Thread):
             self.log.error(e)
             raise
         try:
+            # Actually send the snapshot
             if dest_fmt[0] == 'nc':
                 self.log.debug('Beginning direct send')
                 self._direct_send(send_cmd, dest_fmt, port)
@@ -373,6 +374,7 @@ class DatasetWorker(Thread):
         self.log.debug('Send finished, closing connections')
         self.sshclient.close()
     def _direct_send(self, send_cmd, dest_fmt, port):
+        self.log.info('Direct send requested')
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((dest_fmt[1], port))
@@ -400,8 +402,9 @@ class DatasetWorker(Thread):
             self.log.error('Send command failed for %s, ' \
                             'check logs', self.latest_snap)
             raise
+        self.log.info('Direct send run completed successfully')
     def _ssh_send(self, send_cmd, dest_fmt, port):
-        self.log.debug('SSH send requested, attempting to open channel')
+        self.log.info('SSH send requested')
         transport = self.sshclient.get_transport()
         try:
             # This will fail if there is nothing listening on the other end
@@ -429,7 +432,7 @@ class DatasetWorker(Thread):
                 channel.send(data)
             else: 
                 break
-        self.log.debug('ssh send success')
+        self.log.info('SSH send run completed successfully')
         channel.close()
     def _prune(self):
         self.log.info('Beginning prune run')
@@ -469,7 +472,7 @@ class DatasetWorker(Thread):
                 self.dataset.destroy_snap(snap)
             except subprocess.CalledProcessError:
                 continue
-        self.log.debug('Pruning complete')
+        self.log.info('Pruning complete')
         return 0
     def run(self):
         '''
@@ -482,9 +485,9 @@ class DatasetWorker(Thread):
                 self.log.debug('No send tag, snap and prune only')
                 # Simply take a snapshot, with the tag from the overall run and then
                 # prune any snapshots that need to be deleted
-                self.log.debug('Taking snapshot...')
+                self.log.info('Taking snapshot...')
                 self.dataset.take_snap(tag=self.run_tag)
-                self.log.debug('Pruning old snapshots')
+                self.log.info('Pruning old snapshots')
                 self._prune()
                 return 0
             else:
@@ -492,9 +495,9 @@ class DatasetWorker(Thread):
                 # simply go ahead and do that
                 if not self.send_tag == self.run_tag:
                     self.log.debug('Not a send run')
-                    self.log.debug('Taking snapshot...')
+                    self.log.info('Taking snapshot...')
                     self.dataset.take_snap(tag=self.run_tag)
-                    self.log.debug('Pruning old snapshots')
+                    self.log.info('Pruning old snapshots')
                     self._prune()
                     return 0
                 # If this is a send run then we need to do a lot more work
@@ -520,7 +523,7 @@ class DatasetWorker(Thread):
                 # At this point we are assuming that there isn't a send in
                 # progress and we have nearly all of the info we need.
                 # First, take a snapshot, then get the new latest snapshot
-                self.log.debug('Taking snapshot...')
+                self.log.info('Taking snapshot...')
                 self.dataset.take_snap(tag=self.run_tag)
                 self.previous_snap = latest_snap
                 self.log.debug('Snapshot rearrange')
@@ -529,7 +532,7 @@ class DatasetWorker(Thread):
                 # modified in future if I feel like supporting any more
                 # transport protocols
                 self.send_fail = False
-                self.log.debug('Beginning send runs')
+                self.log.info('Beginning send runs')
                 for destination in dest:
                     try:
                         self._send(destination)
