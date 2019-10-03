@@ -722,7 +722,6 @@ class Dataset(object):
         try:
             holdsnap = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                universal_newlines=True)
-            self.log.debug(holdsnap.stderr)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
             self.log.info('Failed to hold snapshot %s with %s', snap, ref)
