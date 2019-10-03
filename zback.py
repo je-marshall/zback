@@ -585,7 +585,7 @@ class Dataset(object):
     def _setup_logging(self):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
         try:
-            handler = logging.FileHandler(LOGDIR+self.name)
+            handler = logging.FileHandler(LOG_DIR+self.name)
         except FileNotFoundError:
             self.log.error('Log directory not set correctly')
             raise
