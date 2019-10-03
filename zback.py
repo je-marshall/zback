@@ -103,6 +103,7 @@ class DatasetWorker(Thread):
                                     if PROP in snap and self.run_tag in snap]
             self.latest_remote = remote_snaplist.pop()
         except IndexError:
+            self.log.debug('No remote snapshots found')
             self.latest_remote = None
     def _hold_remote_snap(self, snap):
         '''
@@ -256,6 +257,7 @@ class DatasetWorker(Thread):
             self.log.error('Could not load system host keys')
             raise
         # Check latest snapshot on remote side
+        self.log.debug('Checking latest remote snapshot')
         self._get_remote_snaplist()
         # Find the corresponding local snapshot and thus build the send command
         # that we will need
