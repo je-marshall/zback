@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
-
-import subprocess
-import paramiko
-import socket
-import logging
-import random
-import argparse
-import time
-import json
-import sys
-import re
 from datetime import datetime
 from threading import Thread
+import subprocess
+import argparse
+import paramiko
+import logging
+import random
+import signal
+import socket
+import json
+import time
+import sys
+import re
 
+# Globals, because I'm not messing around with loading config files. If you want
+# to change these go ahead.
 PROP='test:'
 TIMEFMT='%Y-%m-%d-%M%S'
 DEFTAGS={'hourly' : '12', \
          'daily' : '7', \
          'weekly' : '6', \
          'monthly' : '6'}
+ZBX_SEND=True
 HELP='''
      '''
 
@@ -26,6 +29,8 @@ def zbx_send(dsname, prop, value):
     '''
         Dummy function for now, simply prints
     '''
+    if not ZBX_SEND:
+        return
     print("Sort out zabbix sending")
 
 def get_all_datasets(disco=False):
@@ -43,6 +48,12 @@ def get_all_datasets(disco=False):
             if len(dset.split('/')) > 1]
 
 class DatasetWorker(Thread):
+    '''
+    Intended to be called per dataset that needs handling. A run consists of
+    taking a snapshot, sending it to a remote destination or destinations if
+    specified and then cleaning up the snapshots that result. Each run only
+    considers a single tag
+    '''
     def __init__(self, dataset, run_tag):
         Thread.__init__(self)
         self.dataset = dataset
@@ -50,27 +61,94 @@ class DatasetWorker(Thread):
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
         self._get_send_tag()
     def _get_send_tag(self):
+        '''
+        Updates the local send tag 
+        '''
         try:
             self.send_tag = self.dataset.props['send']
         except KeyError as e:
             self.log.debug(e)
-            self.log.info('No send tag specified for dataset ' \
-                          '{0}'.format(self.dataset.name))
+            self.log.info('No send tag specified for dataset %s', self.dataset.name)
             self.send_tag = None
+    def _remote_command(self, command):
+        '''
+        Runs a remote command and returns the output or error
+        '''
+        try:
+            cin, cout, cerr = self.sshclient(command)
+            cout_fmt = cout.read().decode()
+            cerr_fmt = cerr.read().decode()
+            return (cout_fmt, cerr_fmt)
+        except paramiko.SSHException as e:
+            self.log.debug(e)
+            self.log.debug('Error processing command: %s', command)
+            raise
+        except TypeError:
+            # Probably means the sshclient hasn't been initialised, full panic
+            raise
+    def _get_remote_snaplist(self):
+        '''
+        Attempts to get the latest remote snapshot
+        '''
+        try:
+            remote_snap = 'zfs list -H -o name -t snap -s creation '\
+                         '-r {0}'.format(dest_fmt[-1])
+            rsnapout, rsnaperr = self._remote_command(remote_snap)
+            # Important to constrain ourselves to only the tag we're running
+            # with. Given we are at this point we can assume that this is a send
+            # and thus that the tag that is being sent is the only one meant to
+            # be kept in sync with the opposite end.
+            self.remote_snaplist = [snap for snap in \
+                                    rsnapout.rstrip('\n').split('\n') \
+                                    if PROP in snap and self.run_tag in snap]
+            self.latest_remote = remote_snaplist.pop()
+        except IndexError:
+            self.latest_remote = None
+    def _hold_remote_snap(self, snap):
+        '''
+        Attempts to place a hold on a remote snapshot
+        '''
+        try:
+            # Not really sure what the hold ref should be but the name of the
+            # sending dataset seems appropriate
+            remote_hold = 'zfs hold {0} {1}'.format(self.dataset.name, snap)
+            # Check how to verify if there is anything in standard error for
+            # remote commands and log it to debug
+            rholdout, rholderr = self._remote_command(remote_hold)
+        except paramiko.SSHException:
+            self.log.error('Could not place hold on remote snapshot %s', snap)
+            raise
+    def _release_remote_snap(self, snap):
+        '''
+        Attempts to release remote snapshot
+        '''
+        try:
+            remote_rel = 'zfs release {0} {1}'.format(self.dataset.name, snap)
+            rrelout, rrelerr = self._remote_command(remote_rel)
+        except paramiko.SSHException:
+            self.log.error('Could not release remote snapshot %s', snap)
     def _nc_listen(self, command):
+        '''
+        Attempt to start a netcat listen process on the remote end. This is
+        useful for either a direct send or a send via ssh. TODO - look into
+        whitelisting for the direct send case or binding to localhost for the
+        ssh send case
+        '''
         attempts = 5
         while attempts >= 0:
+            # Ephemeral ports, pretty unlikely to be used
             port = random.randint(32768, 60999)
             NC_CMD = 'nc -l {0} -e "{1}"'.format(port, \
                                                  command)
             self.log.debug('nc cmd: {0}'.format(NC_CMD))
             try:
+                # Set it up and send back the port that got used
                 self.sshclient.exec_command(NC_CMD, timeout=5)
                 return port
             except paramiko.SSHException as e:
                 self.log.debug(e)
                 self.log.warning('Could not set up netcat on remote' \
-                                'end, aborting')
+                                ' end, aborting')
                 attempts-=1
                 continue
             except socket.timeout as e:
@@ -78,8 +156,14 @@ class DatasetWorker(Thread):
                 self.log.warning('Timed out waiting for nc command')
                 attempt-=1
                 continue
-        raise RuntimeError('Could not establish nc listener on remote')
+        # If 5 attempts, assume something screwy is going on and bail
+        raise RuntimeError('Could not establish nc listener on remote after ' \
+                           'multiple attempts')
     def _send(self, destination):
+        '''
+        Wraps as many send functions as there are protocols. Some functionality
+        is common to different protocols. 
+        '''
         # Get the list of held snapshots
         try:
             self.dataset.get_holdlist()
@@ -98,9 +182,11 @@ class DatasetWorker(Thread):
             # If this run is a go, put a send hold on the latest
             # snapshot and send it
             self.dataset.hold_snap(self.latest_snap, destination+':SEND')
-            self.log.debug('No send in progress for destination {0} ' \
-                           ', beginning send'.format(destination))
+            self.log.debug('No send in progress for destination %s, ' \
+                           'beginning send', destination)
             if 'local:' in destination:
+                # Need to refresh snaplist for some reason, was bugging out
+                # before...
                 self.dataset.get_snaps()
                 self._local_send(destination)
             elif 'nc:' or 'ssh:' in destination:
@@ -124,7 +210,16 @@ class DatasetWorker(Thread):
                 self.log.error('Issue removing hold on old snapshots')
                 raise
     def _remote_send(self, destination):
+        '''
+        Further wrapping around the case where the send is to a remote server.
+        This presumes that ssh is set up and working, and that there is a
+        passwordless key in place to access the remote server. At some point I
+        may consider making this more complicated but I doubt it.
+        '''
         dest_fmt = destination.split(':')
+        # Try to establish an ssh connection to the remote host. Catch the many
+        # wonderful possible ways this could go wrong and don't bother doing
+        # anything about them as this is not our problem.
         try:
             self.log.debug('Trying to connect to remote host via ssh')
             self.sshclient = paramiko.client.SSHClient()
@@ -132,70 +227,58 @@ class DatasetWorker(Thread):
             self.sshclient.connect(dest_fmt[1])
         except paramiko.BadHostKeyException as e:
             self.log.debug(e)
-            self.log.error('Could not connect to host {0}, ' \
-                            'bad host key'.format(dest_fmt[1]))
+            self.log.error('Could not connect to host %s, ' \
+                            'bad host key', dest_fmt[1])
             raise
         except paramiko.AuthenticationException as e:
             self.log.debug(e)
-            self.log.error('Could not connect to host {0}, ' \
-                            'authentication failure'.format(dest_fmt[1]))
+            self.log.error('Could not connect to host %s, ' \
+                            'authentication failure', dest_fmt[1])
             raise
         except paramiko.SSHException as e:
-            self.log.error(e)
-            self.log.error('Could not connect to host {0}, ' \
-                            'check logs'.format(dest_fmt[1]))
+            self.log.debug(e)
+            self.log.error('Could not connect to host %s, ' \
+                            'check logs', dest_fmt[1])
             raise
         except socket.error as e:
-            self.log.error(e)
+            self.log.debug(e)
             self.log.error('Socket error while connecting to ' \
-                            '{0}'.format(dest_fmt[1]))
+                            '%s', dest_fmt[1])
             raise
         except IndexError as e:
             self.log.debug(e)
-            self.log.debug('Dest string: {0}'.format(destination))
+            self.log.debug('Dest string: %s', destination)
             self.log.error('Destination incorrectly formatted for ' \
-                            'dataset {0}'.format(self.dataset.name))
+                            'dataset %s', self.dataset.name)
             raise
         except IOError as e:
             self.log.debug(e)
             self.log.error('Could not load system host keys')
             raise
         # Check latest snapshot on remote side
-        RSNAP_CMD = 'zfs list -H -o name -t snap -s creation '\
-                     '-r {0}'.format(dest_fmt[-1])
-        try:
-            rsnapin, rsnapout, rsnaperr = self.sshclient.exec_command(RSNAP_CMD)
-        except paramiko.SSHException as e:
-            self.log.debug(e)
-            self.log.debug('Remote snap command: {0}'.format(RSNAP_CMD))
-            self.log.error('Could not list snapshots on remote server '\
-                            '{0}'.format(fmt_dest[1]))
-            raise
-        try:
-            remote_string = rsnapout.read()
-            self.latest_remote = [snap for snap in \
-                                  remote_string.decode('utf-8').rstrip('\n').split('\n') \
-                                  if PROP in snap].pop()
-            self.log.debug(self.latest_remote)
-        except IndexError as e:
-            self.latest_remote = None
-            self.log.debug('No remote snapshots')
+        self._get_remote_snaplist()
         # Find the corresponding local snapshot and thus build the send command
         # that we will need
         if self.latest_remote:
             try:
+                # Match the timestamps
                 local_match = [snap for snap in self.dataset.snaplist \
                                if snap.split('@')[-1] == \
                                self.latest_remote.split('@')[-1]].pop()
                 send_cmd = ['zfs', 'send', '-c', '-i', local_match, \
                             self.dataset.snaplist.pop()]
             except IndexError as e:
+                # Implies no common snapshots between replication pair, full
+                # error, abort
                 self.log.debug(e)
-                self.log.error('Snapshots out of sync for dataset' \
-                               ' {0}'.format(self.dataset.name))
+                self.log.error('Snapshots out of sync for dataset ' \
+                               '%s', self.dataset.name)
                 raise
         else:
             send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist.pop()]
+        # Note that this can be modified in future to potentially incorporate
+        # send and receive resuminging. This might be possible with the
+        # _remote_command function
         recv_cmd = '/sbin/zfs recv {0}'.format(dest_fmt[-1])
         try:
             port = self._nc_listen(recv_cmd)
@@ -214,6 +297,18 @@ class DatasetWorker(Thread):
             self.log.debug(e)
             self.log.error("Error sending snapshot")
             self.sshclient.close()
+        # Assuming the send went ok, need to try to hold the remote snapshot as
+        # well to ensure that it does not get rotated out as well
+        try:
+            self._get_remote_snaplist()
+            self._hold_remote_snap(self.remote_snaps.pop())
+            # This presumes that the previous snapshot, prior to the most
+            # recently send, is held. This should be the case, if it is not then
+            # something has gone wrong but this possibly isn't the best way of
+            # handling it.
+            self._release_remote_snap(self.remote_snaps.pop())
+        except Exception:
+            raise
     def _local_send(self, destination):
         self.log.debug('Beginning local send run')
         dest_fmt = destination.split(':')
@@ -234,13 +329,13 @@ class DatasetWorker(Thread):
         except IndexError as e:
             self.log.debug(e)
             self.log.warning('No snaphots in common for ' \
-                             '{0} and {1}'.format(dest_fmt[-1], self.dataset.name))
+                             '%s and %s', dest_fmt[-1], self.dataset.name)
             send_cmd = ['zfs', 'send', self.dataset.snaplist.pop()]
             recv_cmd = ['zfs', 'recv', '-F', dest_fmt[-1]]
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
             self.log.error('Could not check destination filesystem: ' \
-                           '{0}'.format(dest_fmt[-1]))
+                           '%s', dest_fmt[-1])
             raise
         try:
             send = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, \
@@ -262,25 +357,25 @@ class DatasetWorker(Thread):
         except socket.error as e:
             self.log.debug('Socket error: '+e)
             self.log.error('Could not establish connection to remote ' \
-                            'host {0}, remote nc failure?'.format(dest_fmt[1]))
+                            'host %s, remote nc failure?', dest_fmt[1])
             raise
         sock_stdout = sock.makefile('w')
         try:
             self.log.debug('Beginning send command on local side')
-            self.log.debug('send cmd: {0}'.format(send_cmd))
+            self.log.debug('send cmd: %s', send_cmd)
             proc = subprocess.Popen(send_cmd, stderr=subprocess.PIPE, \
                                     universal_newlines=True, stdout=sock_stdout)
             proc_stderr = proc.stderr.read()
             if proc_stderr:
-                self.log.debug('Send command error: '+proc_stderr)
+                self.log.debug('Send command error: %s', proc_stderr)
                 raise RuntimeError
             self.log.debug('Send finished')
         except subprocess.CalledProcessError as e:
             self.log.debug(send_cmd)
             self.log.error(e.output)
             self.log.debug(e)
-            self.log.error('Send command failed for {0}, ' \
-                            'check logs'.format(self.latest_snap))
+            self.log.error('Send command failed for %s, ' \
+                            'check logs', self.latest_snap)
             raise
     def _ssh_send(self, send_cmd, dest_fmt, port):
         self.log.debug('SSH send requested, attempting to open channel')
@@ -290,19 +385,19 @@ class DatasetWorker(Thread):
             channel = transport.open_channel('direct-tcpip', \
                                              dest_addr=(dest_fmt[1], port), \
                                              src_addr=('localhost', port))
-            self.log.debug('SSH channel opened to nc listen on port' \
-                           ' {0}'.format(port))
+            self.log.debug('SSH channel opened to nc listen on port ' \
+                           '%s', port)
         except paramiko.SSHException as e:
             self.log.debug(e)
             self.log.error('Could not open SSH forward channel')
             raise
         try:
             self.log.debug('Beginning send command')
-            self.log.debug('send_cmd: {0}'.format(send_cmd))
+            self.log.debug('send_cmd: %s', send_cmd)
             sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.debug('send_cmd: {0}'.format(send_cmd))
+            self.log.debug('send_cmd: %s', send_cmd)
             self.log.error('Could not start local send operation')
             raise
         while True:
@@ -320,11 +415,11 @@ class DatasetWorker(Thread):
             raise KeyError
         except KeyError as e:
             self.log.debug(e)
-            self.log.info('No tags found for dataset {0} ' \
-                          'assuming defaults'.format(self.dataset.name))
+            self.log.info('No tags found for dataset %s ' \
+                          'assuming defaults', self.dataset.name)
             if self.run_tag not in DEFTAGS.keys():
                 self.log.error('Run called with unspecified ' \
-                               'tag for {0}'.format(self.dataset.name))
+                               'tag for %s', self.dataset.name)
                 raise ValueError
             tags = DEFTAGS
         self.dataset.get_snaps()
@@ -343,21 +438,21 @@ class DatasetWorker(Thread):
                 while len(this_tag_list) > int(tags[tag]):
                     del_list.append(this_tag_list.pop(0))
             except ValueError:
-                self.log.error('Incorrectly formatted tag: {0}'.format(tags[tag]))
+                self.log.error('Incorrectly formatted tag: %s', tags[tag])
                 return 1
         for snap in del_list:
             try:
-                self.log.debug('Deleting snapshot: {0}'.format(snap))
+                self.log.debug('Deleting snapshot: %s', snap)
                 self.dataset.destroy_snap(snap)
             except subprocess.CalledProcessError:
                 continue
         self.log.debug('Pruning complete')
         return 0
     def run(self):
-    '''
-    This is called by thread.start(), processes the options applied to the
-    dataset and decides what to do accordingly
-    '''
+        '''
+        This is called by thread.start(), processes the options applied to the
+        dataset and decides what to do accordingly
+        '''
         try:
             if self.send_tag is None:
                 # No send tag specified so just snap and prune
@@ -392,9 +487,9 @@ class DatasetWorker(Thread):
                     # This implies a config error as a send tag has been
                     # specified but no destination set
                     self.log.debug(e)
-                    self.log.error('No destination set for dataset {0}, ' \
+                    self.log.error('No destination set for dataset %s, ' \
                                    'but send tag has been set, check ' \
-                                   'config'.format(self.dataset.name))
+                                   'config', self.dataset.name)
                     # Do a normal run anyway
                     self.dataset.take_snap(tag=self.run_tag)
                     self._prune()
@@ -417,9 +512,9 @@ class DatasetWorker(Thread):
                         self._send(destination)
                     except Exception as e:
                         self.log.debug(e)
-                        self.log.warning('Could not hold latest snapshot for {0}, ' \
+                        self.log.warning('Could not hold latest snapshot for %s, ' \
                                          'assuming send in' \
-                                         'progress'.format(self.dataset.name))
+                                         'progress', self.dataset.name)
                         self.send_fail = True
                         continue
                     # Run a separate send for each destination, continuing if
@@ -479,6 +574,7 @@ class Dataset(object):
         '''
             Very dangerous, only really here for testing
         '''
+        # Seriously don't go doing this
         self.get_holdlist()
         [self.release_snap(snap, self.get_hold(snap)) for snap in self.holdlist]
         self.get_holdlist()
@@ -490,7 +586,7 @@ class Dataset(object):
                                                 universal_newlines=True)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.error('Failed to get snapshot for {0}'.format(self.name))
+            self.log.error('Failed to get snapshot for %s', self.name)
             raise
         # Doesn't need to be sorted in python as it has been sorted by creation
         # time anyway
@@ -504,8 +600,8 @@ class Dataset(object):
                                                universal_newlines=True)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.error('Failed to get list of held snapshots for' \
-                           ' {0}'.format(self.name))
+            self.log.error('Failed to get list of held snapshots for ' \
+                           '%s', self.name)
             raise
         self.holdlist = [snap.split('\t')[0] for snap in getholds.split('\n') \
                          if '@' in snap and int(snap.split('\t')[-2])]
@@ -525,8 +621,8 @@ class Dataset(object):
                                               universal_newlines=True)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.info('Failed to set property {0} on ' \
-                           'dataset {1}'.format(prop, self.name))
+            self.log.info('Failed to set property %s on ' \
+                           'dataset %s', prop, self.name)
             raise
         self._get_props()
     def take_snap(self, tag=''):
@@ -535,11 +631,11 @@ class Dataset(object):
         try:
             takesnap = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                universal_newlines=True)
-            self.log.debug('take_snap: {0}@{1}'.format(self.name, nowstamp))
+            self.log.debug('take_snap: %s@%s', self.name, nowstamp)
             self.get_snaps()
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.info('Failed to take snapshot: {0}'.format(snap))
+            self.log.info('Failed to take snapshot: %s', snap)
             raise
     def destroy_snap(self, snap):
         CMD = ['zfs', 'destroy', snap]
@@ -549,7 +645,7 @@ class Dataset(object):
             self.get_snaps()
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.info('Failed to destroy snapshot: {0}'.format(snap))
+            self.log.info('Failed to destroy snapshot: %s', snap)
             raise
     def hold_snap(self, snap, ref):
         CMD = ['zfs', 'hold', ref, snap]
@@ -558,7 +654,7 @@ class Dataset(object):
                                                universal_newlines=True)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.info('Failed to hold snapshot {0} with {1}'.format(snap, ref))
+            self.log.info('Failed to hold snapshot %s with %s', snap, ref)
             raise
     def release_snap(self, snap, ref):
         CMD = ['zfs', 'release', ref, snap]
@@ -567,7 +663,7 @@ class Dataset(object):
                                               universal_newlines=True)
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.info('Failed to release snapshot {0} with {1}'.format(snap, ref))
+            self.log.info('Failed to release snapshot %s with %s', snap, ref)
             raise
 
 def main():
