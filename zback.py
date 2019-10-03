@@ -582,10 +582,11 @@ class Dataset(object):
     '''
         Dataset and related operations
     '''
-    def __init__(self, name):
+    def __init__(self, name, verbose):
         self.name = name
         self.props = None
         self._get_props()
+        self.verbose = verbose
         self.log = None
         self._setup_logging()
         self.get_snaps()
@@ -597,6 +598,10 @@ class Dataset(object):
             handler = WatchedFileHandler(logfile)
             handler.setFormatter(formatter)
             self.log.addHandler(handler)
+            if self.verbose:
+                log.setLevel(logging.DEBUG)
+            else:
+                log.setLevel(logging.INFO)
         except FileNotFoundError:
             raise
     def _get_props(self):
@@ -743,7 +748,7 @@ def main():
     dsets = []
     for dataset in get_all_datasets():
         try:
-            dset = Dataset(dataset)
+            dset = Dataset(dataset, args.verbose)
             dsets.append(dset)
             if args.verbose:
                 log.debug('Found dataset: %s', dset.name)
