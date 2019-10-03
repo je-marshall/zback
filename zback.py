@@ -226,9 +226,6 @@ class DatasetWorker(Thread):
             latest_match = [snap for snap in self.dataset.snaplist \
                             if snap.split('@')[-1] == \
                             latest_dest.split('@')[-1]].pop()
-            if not latest_match:
-                self.log.error('Snapshots are out of sync for destination %s', dest_fmt[-1])
-                raise IndexError
             send_cmd = ['zfs', 'send', '-i', latest_match, \
                         self.dataset.snaplist.pop()]
             recv_cmd = ['zfs', 'recv', dest_fmt[-1]]
