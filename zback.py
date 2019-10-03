@@ -585,7 +585,9 @@ class Dataset(object):
     def _setup_logging(self):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
         try:
-            handler = logging.FileHandler(LOG_DIR+self.name+'.log')
+            self.log.info('Setting up logfile %s', LOG_DIR+self.name+'.log')
+            handler = logging.WatchedFileHandler(LOG_DIR+self.name+'.log')
+            self.log.addHandler(handler)
         except FileNotFoundError:
             raise
     def _get_props(self):
