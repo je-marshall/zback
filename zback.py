@@ -127,7 +127,11 @@ class DatasetWorker(Thread):
             # Check how to verify if there is anything in standard error for
             # remote commands and log it to debug
             rholdout, rholderr = self._remote_command(remote_hold)
-            self.log.debug(rholderr)
+            if rholderr == '':
+                return
+            else:
+                self.log.error('Could not place hold on remote snapshot %s', snap)
+                selg.log.debug(rholderr)
         except paramiko.SSHException:
             self.log.error('Could not place hold on remote snapshot %s', snap)
             raise
@@ -138,6 +142,11 @@ class DatasetWorker(Thread):
         try:
             remote_rel = 'zfs release {0} {1}'.format(self.dataset.name, snap)
             rrelout, rrelerr = self._remote_command(remote_rel)
+            if rrelerr == '':
+                return
+            else:
+                self.log.error('Could not place hold on remote snapshot %s', snap)
+                selg.log.debug(rrelerr)
         except paramiko.SSHException:
             self.log.error('Could not release remote snapshot %s', snap)
     def _nc_listen(self, command):
