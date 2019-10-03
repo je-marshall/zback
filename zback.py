@@ -733,7 +733,7 @@ def main():
             dset = Dataset(dataset)
             dsets.append(dset)
             log.debug('Found dataset: {0}'.format(dest.name))
-        except (TypeError, AssertionError):
+        except (KeyError, AssertionError):
             if args.verbose:
                 log.debug('No properties configured for %s, skipping', dset)            
             continue
