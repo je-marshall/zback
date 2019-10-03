@@ -264,7 +264,11 @@ class DatasetWorker(Thread):
             raise
         # Check latest snapshot on remote side
         self.log.debug('Checking latest remote snapshot')
-        self._get_remote_snaplist()
+        try:
+            self._get_remote_snaplist()
+        except Exception as e:
+            self.log.debug(e)
+            raise
         # Find the corresponding local snapshot and thus build the send command
         # that we will need
         if self.latest_remote:
