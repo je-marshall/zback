@@ -351,7 +351,7 @@ class DatasetWorker(Thread):
                                '%s', dest_fmt[-2])
                 raise
         else:
-            send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist.[-1]]
+            send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
         # Note that this can be modified in future to potentially incorporate
         # send and receive resuminging. This might be possible with the
         # _remote_command function
