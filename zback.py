@@ -17,9 +17,9 @@ import re
 
 # Globals, because I'm not messing around with loading config files. If you want
 # to change these go ahead.
-PROP='test:'
-TIMEFMT='%Y-%m-%d-%M%S'
-DEFTAGS={'hourly' : '12', \
+PROP='zback:'
+TIMEFMT='%Y-%m-%d-%H%M'
+DEFTAGS={'hourly' : '48', \
          'daily' : '7', \
          'weekly' : '6', \
          'monthly' : '6'}
