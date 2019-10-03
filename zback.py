@@ -368,6 +368,8 @@ class DatasetWorker(Thread):
             self._release_remote_snap(self.remote_snaps.pop())
         except Exception:
             raise
+        self.log.debug('Send finished, closing connections')
+        channel.close()
     def _direct_send(self, send_cmd, dest_fmt, port):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -425,8 +427,6 @@ class DatasetWorker(Thread):
                 channel.send(data)
             else: 
                 break
-        self.log.debug('Send finished, closing connections')
-        channel.close()
     def _prune(self):
         self.log.info('Beginning prune run')
         try:
