@@ -231,6 +231,7 @@ class DatasetWorker(Thread):
             try:
                 for hold in self.dataset.get_holds(held_snap):
                     if hold == destination:
+                        self.log.debug('Releasing old snap %s', held_snap)
                         self.dataset.release_snap(held_snap, destination)
             except subprocess.CalledProcessError:
                 self.log.error('Issue removing hold on old snapshots')
@@ -462,7 +463,6 @@ class DatasetWorker(Thread):
             # Extract tags from snapshot
             raise KeyError
         except KeyError as e:
-            self.log.debug(e)
             self.log.info('No tags found for dataset %s ' \
                           'assuming defaults', self.dataset.name)
             if self.run_tag not in DEFTAGS.keys():
