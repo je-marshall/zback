@@ -238,6 +238,7 @@ class DatasetWorker(Thread):
             self.log.debug(e)
             self.log.warning('No snaphots in common for ' \
                              '%s and %s', dest_fmt[-1], self.dataset.name)
+            self.log.warning('Attempting to initialise destination dataset')
             if not self.initialise:
                 self.log.error('Snapshots out of sync for destination %s', dest_fmt[-1])
                 raise RuntimeError('Snapshots out of sync')
@@ -366,12 +367,12 @@ class DatasetWorker(Thread):
         try:
             self.log.debug('Holding remote snapshots')
             self._get_remote_snaplist(dest_fmt)
-            self._hold_remote_snap(self.remote_snaps.pop())
+            self._hold_remote_snap(self.remote_snaplist.pop())
             # This presumes that the previous snapshot, prior to the most
             # recently send, is held. This should be the case, if it is not then
             # something has gone wrong but this possibly isn't the best way of
             # handling it.
-            self._release_remote_snap(self.remote_snaps.pop())
+            self._release_remote_snap(self.remote_snaplist.pop())
         except Exception as e:
             self.log.debug(e)
             raise
