@@ -577,11 +577,11 @@ class Dataset(object):
     '''
     def __init__(self, name):
         self.name = name
+        self.log = None
+        self._setup_logging()
         self.props = None
         self._get_props()
         self.get_snaps()
-        self.log = None
-        self._setup_logging()
     def _setup_logging(self):
         self.log = logging.getLogger('zback.{0}'.format(self.name))
         try:
