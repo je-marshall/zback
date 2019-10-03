@@ -186,21 +186,6 @@ class DatasetWorker(Thread):
         Wraps as many send functions as there are protocols. Some functionality
         is common to different protocols. 
         '''
-        # Get the list of held snapshots
-        try:
-            self.dataset.get_holdlist()
-            for snap in self.dataset.holdlist:
-                holds = self.dataset.get_holds(snap)
-                for hold in holds:
-                    if destination+':SEND' in hold:
-                        self.log.error('Send in progress, aborting')
-                        raise RuntimeError
-        except IndexError:
-            self.log.debug('No held snapshots')
-            send_holds = None
-        except subprocess.CalledProcessError:
-            self.log.error('Error getting list of held snapshots')
-            raise
         try:
             # If this run is a go, put a send hold on the latest
             # snapshot and send it
@@ -554,7 +539,19 @@ class DatasetWorker(Thread):
                 # transport protocols
                 self.send_fail = False
                 self.log.info('Beginning send runs')
+                self.dataset.get_holdlist()
                 for destination in dest:
+                    if self.dataset.holdlist:
+                        try:
+                            for snap in self.dataset.holdlist:
+                                holds = self.dataset.get_holds(snap)
+                                for hold in holds:
+                                    if destination+':SEND' in hold:
+                                        self.log.error('Send in progress, aborting')
+                                        continue
+                        except subprocess.CalledProcessError:
+                            self.log.error('Error getting list of held snapshots')
+                            raise
                     try:
                         self._send(destination)
                     except Exception as e:
