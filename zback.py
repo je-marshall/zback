@@ -92,6 +92,7 @@ class DatasetWorker(Thread):
         '''
         Attempts to get the latest remote snapshot
         '''
+        self.log.debug('Starting this fucking section WTF')
         try:
             remote_snap = 'zfs list -H -o name -t snap -s creation '\
                          '-r {0}'.format(dest_fmt[-1])
