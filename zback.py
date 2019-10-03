@@ -214,6 +214,47 @@ class DatasetWorker(Thread):
             except subprocess.CalledProcessError:
                 self.log.error('Issue removing hold on old snapshots')
                 raise
+    def _local_send(self, destination):
+        self.log.debug('Beginning local send run')
+        dest_fmt = destination.split(':')
+        try:
+            dest_cmd = ['zfs', 'list', '-t', 'snap', '-o', 'name', \
+                        '-H', '-s', 'creation', '-r',  dest_fmt[-1]]
+            self.log.debug(dest_cmd)
+            latest_dest = subprocess.check_output(dest_cmd).strip('\n').split('\n', \
+                                                  universal_newlines=True).pop()
+            latest_match = [snap for snap in self.dataset.snaplist \
+                            if snap.split('@')[-1] == \
+                            latest_dest.split('@')[-1]].pop()
+            if not latest_match:
+                self.log.error('Snapshots are out of sync for destination %s', dest_fmt[-1])
+                raise IndexError
+            send_cmd = ['zfs', 'send', '-i', latest_match, \
+                        self.dataset.snaplist.pop()]
+            recv_cmd = ['zfs', 'recv', dest_fmt[-1]]
+        except IndexError as e:
+            self.log.debug(e)
+            self.log.warning('No snaphots in common for ' \
+                             '%s and %s', dest_fmt[-1], self.dataset.name)
+            send_cmd = ['zfs', 'send', self.dataset.snaplist.pop()]
+            recv_cmd = ['zfs', 'recv', '-F', dest_fmt[-1]]
+        except subprocess.CalledProcessError as e:
+            self.log.debug(e)
+            self.log.error('Could not check destination filesystem: ' \
+                           '%s', dest_fmt[-1])
+            raise
+        try:
+            send = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, \
+                                    universal_newlines=True)
+            recv = subprocess.Popen(recv_cmd, stdin=send.stdout, \
+                                    universal_newlines=True)
+            while recv.poll() is None:
+                time.sleep(1)
+        except subprocess.CalledProcessError as e:
+            self.log.debug(e)
+            self.log.error('Error sending snapshot')
+            raise
+        self.log.debug('Snapshot sent successfully')
     def _remote_send(self, destination):
         '''
         Further wrapping around the case where the send is to a remote server.
@@ -278,14 +319,15 @@ class DatasetWorker(Thread):
                 local_match = [snap for snap in self.dataset.snaplist \
                                if snap.split('@')[-1] == \
                                self.latest_remote.split('@')[-1]].pop()
+                self.log.debug('Latest common snapshot: %s', local_match)
                 send_cmd = ['zfs', 'send', '-c', '-i', local_match, \
                             self.dataset.snaplist.pop()]
             except IndexError as e:
                 # Implies no common snapshots between replication pair, full
                 # error, abort
                 self.log.debug(e)
-                self.log.error('Snapshots out of sync for dataset ' \
-                               '%s', self.dataset.name)
+                self.log.error('Snapshots out of sync for destination ' \
+                               '%s', dest_fmt[-2])
                 raise
         else:
             send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist.pop()]
@@ -322,46 +364,6 @@ class DatasetWorker(Thread):
             self._release_remote_snap(self.remote_snaps.pop())
         except Exception:
             raise
-    def _local_send(self, destination):
-        self.log.debug('Beginning local send run')
-        dest_fmt = destination.split(':')
-        try:
-            dest_cmd = ['zfs', 'list', '-t', 'snap', '-o', 'name', \
-                        '-H', '-s', 'creation', '-r',  dest_fmt[-1]]
-            self.log.debug(dest_cmd)
-            latest_dest = subprocess.check_output(dest_cmd).strip('\n').split('\n', \
-                                                  universal_newlines=True).pop()
-            latest_match = [snap for snap in self.dataset.snaplist \
-                            if snap.split('@')[-1] == \
-                            latest_dest.split('@')[-1]].pop()
-            if not latest_match:
-                raise IndexError
-            send_cmd = ['zfs', 'send', '-i', latest_match, \
-                        self.dataset.snaplist.pop()]
-            recv_cmd = ['zfs', 'recv', dest_fmt[-1]]
-        except IndexError as e:
-            self.log.debug(e)
-            self.log.warning('No snaphots in common for ' \
-                             '%s and %s', dest_fmt[-1], self.dataset.name)
-            send_cmd = ['zfs', 'send', self.dataset.snaplist.pop()]
-            recv_cmd = ['zfs', 'recv', '-F', dest_fmt[-1]]
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
-            self.log.error('Could not check destination filesystem: ' \
-                           '%s', dest_fmt[-1])
-            raise
-        try:
-            send = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, \
-                                    universal_newlines=True)
-            recv = subprocess.Popen(recv_cmd, stdin=send.stdout, \
-                                    universal_newlines=True)
-            while recv.poll() is None:
-                time.sleep(1)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
-            self.log.error('Error sending snapshot')
-            raise
-        self.log.debug('Snapshot sent successfully')
     def _direct_send(self, send_cmd, dest_fmt, port):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
