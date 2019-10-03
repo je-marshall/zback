@@ -218,11 +218,11 @@ class DatasetWorker(Thread):
         may consider making this more complicated but I doubt it.
         '''
         dest_fmt = destination.split(':')
+        self.log.debug('Send is to remote host, attempting to connect via ssh')
         # Try to establish an ssh connection to the remote host. Catch the many
         # wonderful possible ways this could go wrong and don't bother doing
         # anything about them as this is not our problem.
         try:
-            self.log.debug('Trying to connect to remote host via ssh')
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(dest_fmt[1])
@@ -255,6 +255,9 @@ class DatasetWorker(Thread):
         except IOError as e:
             self.log.debug(e)
             self.log.error('Could not load system host keys')
+            raise
+        except Exception as e:
+            self.log.debug(e)
             raise
         # Check latest snapshot on remote side
         self.log.debug('Checking latest remote snapshot')
