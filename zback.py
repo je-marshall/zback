@@ -186,8 +186,6 @@ class DatasetWorker(Thread):
         Wraps as many send functions as there are protocols. Some functionality
         is common to different protocols. 
         '''
-        # Refresh snaplist once
-        self.dataset.get_snaps()
         # Get the list of held snapshots
         try:
             self.dataset.get_holdlist()
