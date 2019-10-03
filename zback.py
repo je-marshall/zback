@@ -360,7 +360,7 @@ class DatasetWorker(Thread):
         # well to ensure that it does not get rotated out as well
         try:
             self.log.debug('Holding remote snapshots')
-            self._get_remote_snaplist()
+            self._get_remote_snaplist(dest_fmt)
             self._hold_remote_snap(self.remote_snaps.pop())
             # This presumes that the previous snapshot, prior to the most
             # recently send, is held. This should be the case, if it is not then
