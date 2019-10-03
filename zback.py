@@ -367,7 +367,7 @@ class DatasetWorker(Thread):
         try:
             self.log.debug('Holding remote snapshots')
             self._get_remote_snaplist(dest_fmt)
-            self._hold_remote_snap(self.remote_snaplist.pop())
+            self._hold_remote_snap(self.latest_remote)
             # This presumes that the previous snapshot, prior to the most
             # recently send, is held. This should be the case, if it is not then
             # something has gone wrong but this possibly isn't the best way of
