@@ -75,6 +75,7 @@ class DatasetWorker(Thread):
         Runs a remote command and returns the output or error
         '''
         try:
+            self.log.debug('Running remote command: %s', command)
             cin, cout, cerr = self.sshclient(command)
             cout_fmt = cout.read().decode()
             cerr_fmt = cerr.read().decode()
@@ -83,8 +84,9 @@ class DatasetWorker(Thread):
             self.log.debug(e)
             self.log.debug('Error processing command: %s', command)
             raise
-        except TypeError:
+        except TypeError as e:
             # Probably means the sshclient hasn't been initialised, full panic
+            self.log.error(e)
             raise
     def _get_remote_snaplist(self):
         '''
