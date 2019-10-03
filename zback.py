@@ -192,7 +192,7 @@ class DatasetWorker(Thread):
                     self.log.error('Send in progress to destination %s, aborting', \
                                    destination)
                     raise RuntimeError
-        except subprocess.CalledProcessError
+        except subprocess.CalledProcessError:
             self.log.error('Error checking holds on snapshots')
         try:
             # If this run is a go, put a send hold on the latest
