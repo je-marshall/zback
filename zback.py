@@ -538,6 +538,8 @@ class DatasetWorker(Thread):
         # Now we need to see if we are doing any sending
         send_jobs = [tag for tag in self.send_tags if self.run_tag in tag]
         if send_jobs:
+            # Update the list of held snapshots
+            self.dataset.get_holdlist()
             self.log.info('Send tags specified')
             for job in send_jobs:
                 try:
