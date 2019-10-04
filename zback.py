@@ -349,8 +349,11 @@ class DatasetWorker(Thread):
                 # Implies no common snapshots between replication pair, full
                 # error, aborts
                 self.log.debug(e)
-                self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
-                raise
+                if not self.initialise:
+                    self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
+                    raise RuntimeError
+                send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
+                recv_cmd = '/sbin/zfs recv -F {0}'.format(dest_fmt[-1])
         else:
             # No remote snapshot means we might be trying to initialise
             if not self.initialise:
