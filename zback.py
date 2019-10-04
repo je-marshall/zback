@@ -352,6 +352,7 @@ class DatasetWorker(Thread):
                 if not self.initialise:
                     self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
                     raise RuntimeError
+                self.log.warning('Attempting to initialise remote dataset') 
                 send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
                 recv_cmd = '/sbin/zfs recv -F {0}'.format(dest_fmt[-1])
         else:
@@ -359,6 +360,7 @@ class DatasetWorker(Thread):
             if not self.initialise:
                 self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
                 raise RuntimeError
+            self.log.warning('Attempting to initialise remote dataset') 
             send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
             recv_cmd = '/sbin/zfs recv -F {0}'.format(dest_fmt[-1])
         # Note that this can be modified in future to potentially incorporate
