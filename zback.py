@@ -64,17 +64,31 @@ class DatasetWorker(Thread):
         self.initialise = initialise
         self.prune = prune
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
-        self._get_send_tag()
-    def _get_send_tag(self):
+        self._get_send_tags()
+        self._get_recv_tags()
+    def _get_send_tags(self):
         '''
-        Updates the local send tag 
+        Updates the local send tags
         '''
         try:
-            self.send_tag = self.dataset.props['send']
+            send_tags = self.dataset.props['send'].split(',')
+            # Split the tags out but only append if they are formatted correctly
+            # which means having a tag:protocol:destination at least
+            self.send_tags = [tag.split(':') for tag in send_tags \
+                              if len(tag.split(':')) > 2 or None]
         except KeyError as e:
             self.log.debug(e)
-            self.log.info('No send tag specified for dataset %s', self.dataset.name)
+            self.log.info('No send tags specified')
             self.send_tag = None
+    def _get_recv_tags(self):
+        '''
+        Checks for any recv tags
+        '''
+        try:
+            self.recv_tags = self.dataset.props['recv'].split(',')
+        except KeyError as e:
+            self.log.info('No receive tags specifed')
+            self.recv_tags = None
     def _remote_command(self, command):
         '''
         Runs a remote command and returns the output or error
@@ -182,11 +196,15 @@ class DatasetWorker(Thread):
         # If 5 attempts, assume something screwy is going on and bail
         raise RuntimeError('Could not establish nc listener on remote after ' \
                            'multiple attempts')
-    def _send(self, destination):
+    def _send(self, job):
         '''
         Wraps as many send functions as there are protocols. Some functionality
         is common to different protocols. 
         '''
+        # This is lazy AF but its easier than refactoring the lot and will prove
+        # the concept works
+        del(job[0])
+        destination = ':'.join(job)
         try:
             for snap in self.dataset.holdlist:
                 if destination+':SEND' in self.dataset.get_holds(snap):
@@ -200,7 +218,7 @@ class DatasetWorker(Thread):
         try:
             # If this run is a go, put a send hold on the latest
             # snapshot and send it
-            self.dataset.hold_snap(self.latest_snap, destination+':SEND')
+            self.dataset.hold_snap(self.dataset.snaplist[-1], destination+':SEND')
             self.log.debug('No send in progress for destination %s, ' \
                            'beginning send', destination)
             if 'local:' in destination:
@@ -211,13 +229,13 @@ class DatasetWorker(Thread):
                 self._remote_send(destination)
             # Presuming the send went ok, release the send hold
             self.log.debug('Removing send hold')
-            self.dataset.release_snap(self.latest_snap, destination+':SEND')
+            self.dataset.release_snap(self.dataset.snaplist[-1], destination+':SEND')
             # Place a normal hold on the most recently sent snapshot
             self.log.debug('Placing completed hold %s on %s', destination, \
-                           self.latest_snap)
-            self.dataset.hold_snap(self.latest_snap, destination)
+                           self.dataset.snaplist[-1])
+            self.dataset.hold_snap(self.dataset.snaplist[-1], destination)
         except Exception:
-            self.dataset.release_snap(self.latest_snap, destination+':SEND')
+            self.dataset.release_snap(self.dataset.snaplist[-1], destination+':SEND')
         # Check the rest of the hold list to see if any more holds for this
         # destination are present. Note that this works provided the hold list
         # has not been updated which is why the update is only ever called from
@@ -427,7 +445,7 @@ class DatasetWorker(Thread):
             self.log.error(e.output)
             self.log.debug(e)
             self.log.error('Send command failed for %s, ' \
-                            'check logs', self.latest_snap)
+                            'check logs', self.dataset.snaplist[-1])
             raise
         self.log.info('Direct send run completed successfully')
     def _ssh_send(self, send_cmd, dest_fmt, port):
@@ -505,99 +523,33 @@ class DatasetWorker(Thread):
         This is called by thread.start(), processes the options applied to the
         dataset and decides what to do accordingly
         '''
+        # First we need to check if there are any receive tags specified - if
+        # there are, and any of them match the current run tag, then we won't be
+        # taking a snapshot, simply pruning and exiting
         self.log.info('Beginning run with tag %s', self.run_tag)
-        if self.prune:
-            # Pruning only, no snapshotting or nuffink
-            self._prune()
-            return 0
-        try:
-            if self.send_tag is None:
-                # No send tag specified so just snap and prune
-                self.log.debug('No send tag, snap and prune only')
-                # Simply take a snapshot, with the tag from the overall run and then
-                # prune any snapshots that need to be deleted
-                self.log.info('Taking snapshot...')
-                self.dataset.take_snap(tag=self.run_tag)
-                self.log.info('Pruning old snapshots')
+        if self.recv_tags:
+            if self.run_tag in self.recv_tags:
+                self.log.info('This tag is being received, no snapshot needed')
                 self._prune()
-                return 0
-            else:
-                # If we're taking but not sending on this particular run then
-                # simply go ahead and do that
-                if not self.send_tag == self.run_tag:
-                    self.log.debug('Not a send run')
-                    self.log.info('Taking snapshot...')
-                    self.dataset.take_snap(tag=self.run_tag)
-                    self.log.info('Pruning old snapshots')
-                    self._prune()
-                    return 0
-                # If this is a send run then we need to do a lot more work
-                self.log.debug('Checking latest local snap')
-                latest_snap = self.dataset.snaplist.pop()
-                try:
-                    # Get list of destinations - if only one this list will
-                    # simply consist of one element
-                    self.log.debug('Checking destination')
-                    dest = self.dataset.props['destination'].split(',')
-                    self.log.debug(dest)
-                except KeyError as e:
-                    # This implies a config error as a send tag has been
-                    # specified but no destination set
-                    self.log.debug(e)
-                    self.log.error('No destination set for dataset %s, ' \
-                                   'but send tag has been set, check ' \
-                                   'config', self.dataset.name)
-                    # Do a normal run anyway
-                    self.dataset.take_snap(tag=self.run_tag)
-                    self._prune()
-                    return 1
-                # At this point we are assuming that there isn't a send in
-                # progress and we have nearly all of the info we need.
-                # First, take a snapshot, then get the new latest snapshot
-                self.log.info('Taking snapshot...')
-                self.dataset.take_snap(tag=self.run_tag)
-                self.previous_snap = latest_snap
-                self.log.debug('Snapshot rearrange')
-                self.latest_snap = self.dataset.snaplist.pop()
-                # Now we pass this info onto the send wrapper, which can be
-                # modified in future if I feel like supporting any more
-                # transport protocols
-                self.send_fail = False
-                self.log.info('Beginning send runs')
-                self.dataset.get_holdlist()
-                # This whole section needs rethinking to be honest
-                for destination in dest:
-                    try:
-                        self._send(destination)
-                    except Exception as e:
-                        self.log.debug(e)
-                        self.send_fail = True
-                        continue
-                    # Run a separate send for each destination, continuing if
-                    # any errors
-                if self.send_fail:
-                    return 1
-                else:
-                    return 0
-        except KeyError as e:
-            # Key error when destination not specified, need to clean up and
-            # exit - technically this is a failure as it implies send has been
-            return 1
-        except IndexError as e:
-            # Catch the case where there are no snapshots present for the
-            # filesystem. This will require there to be a way to initialise a
-            # system easily.
-            # TODO - Sort out initial run
-            return 1
-        except subprocess.CalledProcessError:
-            # Catch the case where either the bog standard snap or prune
-            # operations fail. Note that this only covers those cases where zfs
-            # functions are encountered, so this indicates cases where
-            # underlying zfs is not responding correctly. This will cause an
-            # error to be logged at a lower level.
-            return 1
-        finally:
-            self._prune()
+                return
+        # At this point we can take a snapshot
+        self.log.info('Taking snapshot...')
+        self.dataset.take_snap(tag=self.run_tag)
+        # Now we need to see if we are doing any sending
+        send_jobs = [tag for tag in self.send_tags if self.run_tag in tag]
+        if send_jobs:
+            self.log.info('Send tags specified')
+            try:
+                for job in send_jobs:
+                    self._send(job)
+            except Exception as e:
+                # Blanket exception catching for unexpected log benefit
+                self.log.error('Send failed for %s', job)
+                self.log.debug(e)
+                continue
+        # Finally, run a prune anyhow, taking into account whether the sends
+        # failed or not
+        self._prune()
 
 class Dataset(object):
     '''
