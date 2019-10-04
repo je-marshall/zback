@@ -711,7 +711,6 @@ class Dataset(object):
             self.get_snaps()
         except subprocess.CalledProcessError as e:
             self.log.debug(e)
-            self.log.info('Failed to take snapshot: %s', snap)
             raise
     def destroy_snap(self, snap):
         CMD = ['zfs', 'destroy', snap]
