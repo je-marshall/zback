@@ -344,19 +344,23 @@ class DatasetWorker(Thread):
                 self.log.debug('Latest common snapshot: %s', local_match)
                 send_cmd = ['zfs', 'send', '-c', '-i', local_match, \
                             self.dataset.snaplist[-1]]
+                recv_cmd = '/sbin/zfs recv {0}'.format(dest_fmt[-1])
             except IndexError as e:
                 # Implies no common snapshots between replication pair, full
                 # error, aborts
                 self.log.debug(e)
-                self.log.error('Snapshots out of sync for destination ' \
-                               '%s', dest_fmt[-2])
+                self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
                 raise
         else:
+            # No remote snapshot means we might be trying to initialise
+            if not self.initialise:
+                self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
+                raise RuntimeError
             send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
+            recv_cmd = '/sbin/zfs recv -F {0}'.format(dest_fmt[-1])
         # Note that this can be modified in future to potentially incorporate
         # send and receive resuminging. This might be possible with the
         # _remote_command function
-        recv_cmd = '/sbin/zfs recv {0}'.format(dest_fmt[-1])
         try:
             port = self._nc_listen(recv_cmd)
             time.sleep(1)
@@ -628,8 +632,9 @@ class Dataset(object):
                      [prop.split('\t') for prop in all_props.split('\n') \
                      if PROP in prop]}
         try:
-            assert self.props['snap']
-        except (AssertionError, KeyError) as e:
+            if not self.props['manage'] == 'yes':
+                raise AssertionError
+        except KeyError:
             raise
     def _clear_holds(self):
         '''
@@ -773,10 +778,10 @@ def main():
             dset = Dataset(dataset, args.verbose)
             dsets.append(dset)
             if args.verbose:
-                log.debug('Found dataset: %s', dset.name)
+                log.debug('Managing dataset: %s', dset.name)
         except (KeyError, AssertionError):
             if args.verbose:
-                log.debug('No properties configured for %s, skipping', dataset)            
+                log.debug('Dataset %s not managed, skipping', dataset)            
             continue
         except FileNotFoundError:
             print('Logging directory not configured correctly')
