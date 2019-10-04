@@ -539,14 +539,14 @@ class DatasetWorker(Thread):
         send_jobs = [tag for tag in self.send_tags if self.run_tag in tag]
         if send_jobs:
             self.log.info('Send tags specified')
-            try:
-                for job in send_jobs:
+            for job in send_jobs:
+                try:
                     self._send(job)
-            except Exception as e:
-                # Blanket exception catching for unexpected log benefit
-                self.log.error('Send failed for %s', job)
-                self.log.debug(e)
-                continue
+                except Exception as e:
+                    # Blanket exception catching for unexpected log benefit
+                    self.log.error('Send failed for %s', job)
+                    self.log.debug(e)
+                    continue
         # Finally, run a prune anyhow, taking into account whether the sends
         # failed or not
         self._prune()
