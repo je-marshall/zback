@@ -792,7 +792,7 @@ def main():
     if not dsets:
         print('No datasets configured, nothing to do')
         sys.exit(0)
-    disco_sets = [dset for dset in dsets if dset.props['snap'] == 'yes']
+    disco_sets = [dset for dset in dsets if dset.props['manage'] == 'yes']
     if args.zabbix:
         print(json.dumps({'data':[{'#ELEMNAME':dset.name} for dset in disco_sets]}))
         sys.exit(0)
