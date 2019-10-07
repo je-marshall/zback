@@ -4,7 +4,6 @@ from datetime import datetime
 from threading import Thread
 import subprocess
 import argparse
-import paramiko
 import logging
 import random
 import signal
@@ -14,9 +13,12 @@ import time
 import sys
 import os
 import re
+import paramiko
 
 # Globals, because I'm not messing around with loading config files. If you want
 # to change these go ahead.
+# PROP must be of the form [a-z]*: otherwise it makes it a pain to send to
+# Zabbix, feel free to ignore this stipulation if you have turned off sending.
 PROP='zback:'
 TIMEFMT='%Y-%m-%d-%H%M'
 DEFTAGS={'hourly' : '48', \
@@ -24,28 +26,43 @@ DEFTAGS={'hourly' : '48', \
          'weekly' : '6', \
          'monthly' : '6'}
 ZBX_SEND=True
+ZBX_CONF='/etc/zabbix/zabbix-agentd.conf'
+ZBX_BIN='/bin/zabbix_sender'
 LOG_DIR='/var/log/zback/'
+LOG_LVL=logging.WARNING
 HELP='''
      '''
 
-def zbx_send(dsname, prop, value):
+def zbx_send(dsname, key, value, log):
     '''
-        Dummy function for now, simply prints
+    Sends updates to Zabbix. Does not check validity of global config variables.
+    Can also be disabled by setting ZBX_SEND to False. In either that case or a
+    successful send it returns, if it fails it returns a ConnectionError
     '''
     if not ZBX_SEND:
         return
-    print("Sort out zabbix sending")
+    send_cmd = [ZBX_BIN, '-c', ZBX_CONF, \
+                '-k', PROP.replace(':', '.')+key+'[%s]', dsname, \
+                '-o', value]
+    try:
+        zabbix_send = subprocess.check_output(CMD, universal_newlines=True)
+    except subprocess.CalledProcessError:
+        log.debug('Failed sending results to zabbix server')
+        log.debug('send_cmd: '+' '.join(send_cmd))
+        log.warning('Error sending to zabbix, check config')
+        raise ConnectionError
+
 
 def get_all_datasets(disco=False):
     '''
-        Returns a list of all datasets
+    Returns a list of all datasets
     '''
     CMD = ['zfs', 'list', '-H', '-o', 'name']
     try:
         datasets = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                            universal_newlines=True)
-    except subprocess.CalledProcessError as e:
-        self.log.error(e.output)
+    except subprocess.CalledProcessError as exception:
+        self.log.error(exception.output)
         raise
     return [dset for dset in datasets.split('\n') \
             if len(dset.split('/')) > 1]
@@ -76,8 +93,8 @@ class DatasetWorker(Thread):
             # which means having a tag:protocol:destination at least
             self.send_tags = [tag.split(':') for tag in send_tags \
                               if len(tag.split(':')) > 2 or None]
-        except KeyError as e:
-            self.log.debug(e)
+        except KeyError as exception:
+            self.log.debug(exception)
             self.log.info('No send tags specified')
             self.send_tag = None
     def _get_recv_tags(self):
@@ -86,7 +103,7 @@ class DatasetWorker(Thread):
         '''
         try:
             self.recv_tags = self.dataset.props['recv'].split(',')
-        except KeyError as e:
+        except KeyError:
             self.log.info('No receive tags specifed')
             self.recv_tags = None
     def _remote_command(self, command):
@@ -99,13 +116,13 @@ class DatasetWorker(Thread):
             cout_fmt = cout.read().decode()
             cerr_fmt = cerr.read().decode()
             return (cout_fmt, cerr_fmt)
-        except paramiko.SSHException as e:
-            self.log.debug(e)
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
             self.log.debug('Error processing command: %s', command)
             raise
-        except TypeError as e:
+        except TypeError as exception:
             # Probably means the sshclient hasn't been initialised, full panic
-            self.log.error(e)
+            self.log.error(exception)
             raise
     def _get_remote_snaplist(self, dest_fmt):
         '''
@@ -182,14 +199,14 @@ class DatasetWorker(Thread):
                 # Set it up and send back the port that got used
                 self.sshclient.exec_command(NC_CMD, timeout=5)
                 return port
-            except paramiko.SSHException as e:
-                self.log.debug(e)
+            except paramiko.SSHException as exception:
+                self.log.debug(exception)
                 self.log.warning('Could not set up netcat on remote' \
                                 ' end, aborting')
                 attempts-=1
                 continue
-            except socket.timeout as e:
-                self.log.debug(e)
+            except socket.timeout as exception:
+                self.log.debug(exception)
                 self.log.warning('Timed out waiting for nc command')
                 attempt-=1
                 continue
@@ -199,7 +216,7 @@ class DatasetWorker(Thread):
     def _send(self, job):
         '''
         Wraps as many send functions as there are protocols. Some functionality
-        is common to different protocols. 
+        is common to different protocols.
         '''
         # This is lazy AF but its easier than refactoring the lot and will prove
         # the concept works
@@ -213,8 +230,8 @@ class DatasetWorker(Thread):
                     raise RuntimeError
         except subprocess.CalledProcessError:
             self.log.error('Error checking holds on snapshots')
-        except IndexError as e:
-            self.log.debug(e)
+        except IndexError:
+            pass
         try:
             # If this run is a go, put a send hold on the latest
             # snapshot and send it
@@ -234,7 +251,8 @@ class DatasetWorker(Thread):
             self.log.debug('Placing completed hold %s on %s', destination, \
                            self.dataset.snaplist[-1])
             self.dataset.hold_snap(self.dataset.snaplist[-1], destination)
-        except Exception:
+        except Exception as exception:
+            self.log.debug(exception)
             self.dataset.release_snap(self.dataset.snaplist[-1], destination+':SEND')
         # Check the rest of the hold list to see if any more holds for this
         # destination are present. Note that this works provided the hold list
@@ -265,8 +283,8 @@ class DatasetWorker(Thread):
             send_cmd = ['zfs', 'send', '-i', latest_match, \
                         self.dataset.snaplist.pop()]
             recv_cmd = ['zfs', 'recv', dest_fmt[-1]]
-        except IndexError as e:
-            self.log.debug(e)
+        except IndexError as exception:
+            self.log.debug(exception)
             self.log.warning('No snaphots in common for ' \
                              '%s and %s', dest_fmt[-1], self.dataset.name)
             if not self.initialise:
@@ -275,13 +293,13 @@ class DatasetWorker(Thread):
             self.log.warning('Attempting to initialise destination dataset')
             send_cmd = ['zfs', 'send', self.dataset.snaplist.pop()]
             recv_cmd = ['zfs', 'recv', '-F', dest_fmt[-1]]
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.error('Could not check destination filesystem: ' \
                            '%s', dest_fmt[-1])
             raise
-        except Exception as e:
-            self.log.debug(e)
+        except Exception as exception:
+            self.log.debug(exception)
             raise
         try:
             send = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, \
@@ -290,8 +308,8 @@ class DatasetWorker(Thread):
                                     universal_newlines=True)
             while recv.poll() is None:
                 time.sleep(1)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.error('Error sending snapshot')
             raise
         self.log.info('Local send run completed successfully')
@@ -311,45 +329,45 @@ class DatasetWorker(Thread):
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(dest_fmt[1])
-        except paramiko.BadHostKeyException as e:
-            self.log.debug(e)
+        except paramiko.BadHostKeyException as exception:
+            self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'bad host key', dest_fmt[1])
             raise
-        except paramiko.AuthenticationException as e:
-            self.log.debug(e)
+        except paramiko.AuthenticationException as exception:
+            self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'authentication failure', dest_fmt[1])
             raise
-        except paramiko.SSHException as e:
-            self.log.debug(e)
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'check logs', dest_fmt[1])
             raise
-        except socket.error as e:
-            self.log.debug(e)
+        except socket.error as exception:
+            self.log.debug(exception)
             self.log.error('Socket error while connecting to ' \
                             '%s', dest_fmt[1])
             raise
-        except IndexError as e:
-            self.log.debug(e)
+        except IndexError as exception:
+            self.log.debug(exception)
             self.log.debug('Dest string: %s', destination)
             self.log.error('Destination incorrectly formatted for ' \
                             'dataset %s', self.dataset.name)
             raise
-        except IOError as e:
-            self.log.debug(e)
+        except IOError as exception:
+            self.log.debug(exception)
             self.log.error('Could not load system host keys')
             raise
-        except Exception as e:
-            self.log.debug(e)
+        except Exception as exception:
+            self.log.debug(exception)
             raise
         # Check latest snapshot on remote side
         self.log.debug('Checking latest remote snapshot')
         try:
             self._get_remote_snaplist(dest_fmt)
-        except Exception as e:
-            self.log.debug(e)
+        except Exception as exception:
+            self.log.debug(exception)
             raise
         # Find the corresponding local snapshot and thus build the send command
         # that we will need
@@ -363,14 +381,14 @@ class DatasetWorker(Thread):
                 send_cmd = ['zfs', 'send', '-c', '-i', local_match, \
                             self.dataset.snaplist[-1]]
                 recv_cmd = '/sbin/zfs recv {0}'.format(dest_fmt[-1])
-            except IndexError as e:
+            except IndexError as exception:
                 # Implies no common snapshots between replication pair, full
                 # error, aborts
-                self.log.debug(e)
+                self.log.debug(exception)
                 if not self.initialise:
                     self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
                     raise RuntimeError
-                self.log.warning('Attempting to initialise remote dataset') 
+                self.log.warning('Attempting to initialise remote dataset')
                 send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
                 recv_cmd = '/sbin/zfs recv -F {0}'.format(dest_fmt[-1])
         else:
@@ -378,7 +396,7 @@ class DatasetWorker(Thread):
             if not self.initialise:
                 self.log.error('Snapshots out of sync for destination %s', dest_fmt[-2])
                 raise RuntimeError
-            self.log.warning('Attempting to initialise remote dataset') 
+            self.log.warning('Attempting to initialise remote dataset')
             send_cmd = ['zfs', 'send', '-c', self.dataset.snaplist[-1]]
             recv_cmd = '/sbin/zfs recv -F {0}'.format(dest_fmt[-1])
         # Note that this can be modified in future to potentially incorporate
@@ -387,8 +405,8 @@ class DatasetWorker(Thread):
         try:
             port = self._nc_listen(recv_cmd)
             time.sleep(1)
-        except Exception as e:
-            self.log.error(e)
+        except Exception as exception:
+            self.log.error(exception)
             raise
         try:
             # Actually send the snapshot
@@ -398,8 +416,8 @@ class DatasetWorker(Thread):
             elif dest_fmt[0] == 'ssh':
                 self.log.debug('Beginning SSH send')
                 self._ssh_send(send_cmd, dest_fmt, port)
-        except Exception as e:
-            self.log.debug(e)
+        except Exception as exception:
+            self.log.debug(exception)
             self.log.error("Error sending snapshot")
             self.sshclient.close()
         # Assuming the send went ok, need to try to hold the remote snapshot as
@@ -413,8 +431,8 @@ class DatasetWorker(Thread):
             # something has gone wrong but this possibly isn't the best way of
             # handling it.
             self._release_remote_snap(self.remote_snaplist.pop())
-        except Exception as e:
-            self.log.debug(e)
+        except Exception as exception:
+            self.log.debug(exception)
             raise
         self.log.debug('Send finished, closing connections')
         self.sshclient.close()
@@ -424,8 +442,8 @@ class DatasetWorker(Thread):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((dest_fmt[1], port))
             self.log.debug('nc listen established, socket connected')
-        except socket.error as e:
-            self.log.debug('Socket error: '+e)
+        except socket.error as exception:
+            self.log.debug('Socket error: '+exception)
             self.log.error('Could not establish connection to remote ' \
                             'host %s, remote nc failure?', dest_fmt[1])
             raise
@@ -440,10 +458,10 @@ class DatasetWorker(Thread):
                 self.log.debug('Send command error: %s', proc_stderr)
                 raise RuntimeError
             self.log.debug('Send finished')
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as exception:
             self.log.debug(send_cmd)
             self.log.error(e.output)
-            self.log.debug(e)
+            self.log.debug(exception)
             self.log.error('Send command failed for %s, ' \
                             'check logs', self.dataset.snaplist[-1])
             raise
@@ -458,24 +476,24 @@ class DatasetWorker(Thread):
                                              src_addr=('localhost', port))
             self.log.debug('SSH channel opened to nc listen on port ' \
                            '%s', port)
-        except paramiko.SSHException as e:
-            self.log.debug(e)
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
             self.log.error('Could not open SSH forward channel')
             raise
         try:
             self.log.debug('Beginning send command')
             self.log.debug('send_cmd: %s', send_cmd)
             sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.debug('send_cmd: %s', send_cmd)
             self.log.error('Could not start local send operation')
             raise
         while True:
             data = sendproc.stdout.read(4096)
-            if data: 
+            if data:
                 channel.send(data)
-            else: 
+            else:
                 break
         self.log.info('SSH send run completed successfully')
         channel.close()
@@ -484,7 +502,7 @@ class DatasetWorker(Thread):
         try:
             # Extract tags from snapshot
             raise KeyError
-        except KeyError as e:
+        except KeyError as exception:
             self.log.info('No tags found for dataset %s ' \
                           'assuming defaults', self.dataset.name)
             if self.run_tag not in DEFTAGS.keys():
@@ -544,29 +562,28 @@ class DatasetWorker(Thread):
             for job in send_jobs:
                 try:
                     self._send(job)
-                except Exception as e:
+                except Exception as exception:
                     # Blanket exception catching for unexpected log benefit
                     self.log.error('Send failed for %s', job)
-                    self.log.debug(e)
+                    self.log.debug(exception)
                     continue
         # Finally, run a prune anyhow, taking into account whether the sends
         # failed or not
         self._prune()
 
-class Dataset(object):
+class Dataset():
     '''
-        Dataset and related operations
+    Dataset and related operations
     '''
     def __init__(self, name, verbose):
         self.name = name
         self.props = None
         self._get_props()
         self.verbose = verbose
-        self.log = None
+        self.log = logging.getLogger('zback.{0}'.format(self.name))
         self._setup_logging()
         self.get_snaps()
     def _setup_logging(self):
-        self.log = logging.getLogger('zback.{0}'.format(self.name))
         try:
             logfile = LOG_DIR+self.name.split('/')[-1]+'.log'
             formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s')
@@ -585,7 +602,7 @@ class Dataset(object):
         try:
             all_props = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                 universal_newlines=True)
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             raise
         self.props = {re.sub(PROP, '', k):v for k,v in \
                      [prop.split('\t') for prop in all_props.split('\n') \
@@ -606,9 +623,9 @@ class Dataset(object):
             for hold in holds:
                 try:
                     self.release_snap(held_snap, hold)
-                except subprocess.CalledProcessError as e:
+                except subprocess.CalledProcessError as exception:
                     self.log.error('Failed to clear hold on snap %s', held_snap)
-                    self.log.debug(e)
+                    self.log.debug(exception)
                     continue
     def get_snaps(self):
         CMD = ['zfs', 'list', '-H', '-t', 'snap', '-s', \
@@ -616,8 +633,8 @@ class Dataset(object):
         try:
             snapshots = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                 universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.error('Failed to get snapshot for %s', self.name)
             raise
         # Doesn't need to be sorted in python as it has been sorted by creation
@@ -630,8 +647,8 @@ class Dataset(object):
         try:
             getholds = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.error('Failed to get list of held snapshots for ' \
                            '%s', self.name)
             raise
@@ -642,8 +659,8 @@ class Dataset(object):
         try:
             gethold = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                               universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             raise
         return [hold.split('\t')[1].strip() for hold in gethold.strip('\n').split('\n')]
     def set_prop(self, prop, value):
@@ -651,8 +668,8 @@ class Dataset(object):
         try:
             setprop = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                               universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.info('Failed to set property %s on ' \
                            'dataset %s', prop, self.name)
             raise
@@ -665,8 +682,8 @@ class Dataset(object):
                                                universal_newlines=True)
             self.log.debug('take_snap: %s@%s', self.name, nowstamp)
             self.get_snaps()
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             raise
     def destroy_snap(self, snap):
         CMD = ['zfs', 'destroy', snap]
@@ -674,8 +691,8 @@ class Dataset(object):
             delsnap = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                               universal_newlines=True)
             self.get_snaps()
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.info('Failed to destroy snapshot: %s', snap)
             raise
     def hold_snap(self, snap, ref):
@@ -683,8 +700,8 @@ class Dataset(object):
         try:
             holdsnap = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                                universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.info('Failed to hold snapshot %s with %s', snap, ref)
             raise
     def release_snap(self, snap, ref):
@@ -692,8 +709,8 @@ class Dataset(object):
         try:
             relsnap = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
                                               universal_newlines=True)
-        except subprocess.CalledProcessError as e:
-            self.log.debug(e)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
             self.log.info('Failed to release snapshot %s with %s', snap, ref)
             raise
 
@@ -718,6 +735,7 @@ def main():
                         action='store_true')
     parser.add_argument('-v', \
                         '--verbose', \
+                        help='Prints debug output to console', \
                         action='store_true')
     parser.add_argument('-z', '--zabbix', \
                         help='JSON formatted list for Zabbix auto-discovery', \
@@ -739,7 +757,7 @@ def main():
                 log.debug('Managing dataset: %s', dset.name)
         except (KeyError, AssertionError):
             if args.verbose:
-                log.debug('Dataset %s not managed, skipping', dataset)            
+                log.debug('Dataset %s not managed, skipping', dataset)           
             continue
         except FileNotFoundError:
             print('Logging directory not configured correctly')
