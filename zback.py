@@ -106,7 +106,7 @@ class NewDataset():
         Takes a snapshot
         '''
         nowstamp = PROP + datetime.now().strftime(TIMEFMT) + ':%s' % tag
-        take_cmd = 'zfs snap %s@%s' % self.name, nowstamp
+        take_cmd = 'zfs snap {0}@{1}'.format(self.name, nowstamp)
         self._exec_command(take_cmd)
         # Set the latest snapshot now, for sending purposes
         self.get_snaps()
