@@ -55,9 +55,9 @@ class NewDataset():
             result = subprocess.check_output(command.split(), \
                                              stderr = subprocess.PIPE, \
                                              universal_newlines = True)
-            self.log.debug('successful command: %s', command)
+            self.log.debug('successful command: %s' % command)
         except subprocess.CalledProcessError:
-            self.log.debug('failed command: %s', command)
+            self.log.debug('failed command: %s' % command)
             self.log.error('Error running ZFS command')
             raise
         # TODO Figure out better subprocess.stderr handling
@@ -66,7 +66,7 @@ class NewDataset():
         '''
         Updates the internal property dictionary
         '''
-        prop_cmd = 'zfs get all -H -o property,value %s', self.name
+        prop_cmd = 'zfs get all -H -o property,value %s' % self.name
         all_props = self._exec_command(prop_cmd)
         self.props = {re.sub(PROP, '', k):v for k,v in \
                       [prop.split('\t') for prop in all_props.split('\n') \
@@ -75,13 +75,13 @@ class NewDataset():
         '''
         Set a property
         '''
-        set_cmd = 'zfs set %s=%si %s', PROP+prop, value, self.name
+        set_cmd = 'zfs set %s=%si %s' % PROP+prop, value, self.name
         self._exec_command(set_cmd)
     def get_holdlist(self):
         '''
         Update internal holdlist
         '''
-        holdlist_cmd = 'zfs get userrefs -H -r %s', self.name
+        holdlist_cmd = 'zfs get userrefs -H -r %s' % self.name
         holdlist = self._exec_command(holdlist_cmd)
         self.holdlist = [snap.split('\t')[0] for snap in holdlist.split('\n') \
                         if '@' in snap and int(snap.split('\t')[-2])]
@@ -89,7 +89,7 @@ class NewDataset():
         '''
         Returns a formatted list of holds placed on a snapshot
         '''
-        holds_cmd = 'zfs holds -H %s', snap
+        holds_cmd = 'zfs holds -H %s' % snap
         holds = self._exec_command(holds_cmd)
         return [hold.split('\t')[1].strip() for hold in \
                 holds.strip('\n').split('\n')]
@@ -97,7 +97,7 @@ class NewDataset():
         '''
         Updates internal snaplist
         '''
-        snap_cmd = 'zfs list -H -t snap -s creation -o name -r %s', self.name
+        snap_cmd = 'zfs list -H -t snap -s creation -o name -r %s' % self.name
         all_snaps = self._exec_command(snap_cmd)
         self.snaplist = [snap for snap in snapshots.rstrip('\n').split('\n') \
                         if PROP in snap]
@@ -105,8 +105,8 @@ class NewDataset():
         '''
         Takes a snapshot
         '''
-        nowstamp = PROP + datetime.now().strftime(TIMEFMT) + ':%s', tag
-        take_cmd = 'zfs snap %s@%s', self.name, nowstamp
+        nowstamp = PROP + datetime.now().strftime(TIMEFMT) + ':%s' % tag
+        take_cmd = 'zfs snap %s@%s' % self.name, nowstamp
         self._exec_command(take_cmd)
         # Set the latest snapshot now, for sending purposes
         self.get_snaps()
@@ -115,14 +115,14 @@ class NewDataset():
         '''
         Destroys a snapshot
         '''
-        destroy_cmd = 'zfs destroy %s', snap
+        destroy_cmd = 'zfs destroy %s' % snap
         self._exec_command(destroy_cmd)
         self.get_snaps()
     def hold_snap(self, snap, ref):
         '''
         Places a userref on a snapshot
         '''
-        hold_cmd = 'zfs hold %s %s', ref, snap
+        hold_cmd = 'zfs hold %s %s' % ref, snap
         self._exec_command(hold_cmd)
         # Not sure about this bit
         self.get_holdlist()
@@ -130,7 +130,7 @@ class NewDataset():
         '''
         Releases a hold placed on a snapshot
         '''
-        release_cmd = 'zfs release %s %s', ref, snap
+        release_cmd = 'zfs release %s %s' % ref, snap
         self._exec_command(release_cmd)
         # Not sure about this bit
         self.get_holdlist()
@@ -140,10 +140,10 @@ class NewDataset():
         '''
         self.get_snaps()
         # Check this syntax
-        send_cmd = ('zfs send -c %s', self.latest_snap).split()
+        send_cmd = ('zfs send -c %s' % self.latest_snap).split()
         try:
             sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
-            self.log.debug('successful cmd: %s', send_cmd)
+            self.log.debug('successful cmd: %s' % send_cmd)
         except subprocess.CalledProcessError as exception:
             self.log.debug(exception)
             self.log.error('Error running ZFS send command')
@@ -154,8 +154,8 @@ class NewDataset():
         '''
         Receive for local dataset only, should be subclassed for remote
         '''
-        if initialise: recv_cmd = 'zfs recv -F %s', self.name
-        else: recv_cmd = 'zfs recv %s', self.name
+        if initialise: recv_cmd = 'zfs recv -F %s' % self.name
+        else: recv_cmd = 'zfs recv %s' % self.name
         try:
             recvproc = subprocess.Popen(recv_cmd.split(), \
                                         stdin=sendproc.stdout)
@@ -187,28 +187,28 @@ class NewRemoteDataset(NewDataset):
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'bad host key', dest_fmt[1])
+                            'bad host key' % dest_fmt[1])
             raise ConnectionError
         except paramiko.AuthenticationException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'authentication failure', dest_fmt[1])
+                            'authentication failure' % dest_fmt[1])
             raise ConnectionError
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'check logs', dest_fmt[1])
+                            'check logs' % dest_fmt[1])
             raise ConnectionError
         except socket.error as exception:
             self.log.debug(exception)
             self.log.error('Socket error while connecting to ' \
-                            '%s', dest_fmt[1])
+                            '%s' % dest_fmt[1])
             raise ConnectionError
         except IndexError as exception:
             self.log.debug(exception)
-            self.log.debug('Dest string: %s', destination)
+            self.log.debug('Dest string: %s' % destination)
             self.log.error('Destination incorrectly formatted for ' \
-                            'dataset %s', self.dataset.name)
+                            'dataset %s' % self.dataset.name)
             raise ConnectionError
         except IOError as exception:
             self.log.debug(exception)
@@ -227,13 +227,13 @@ class NewRemoteDataset(NewDataset):
             cmd_out_fmt = cout.read().decode()
             cmd_err_fmt = cerr.read().decode()
             if cerr_fmt:
-                self.log.debug('stderr: %s', cmd_err_stderr)
+                self.log.debug('stderr: %s' % cmd_err_stderr)
                 self.log.warning('Remote command returned stderr')
-                self.log.warning('remote command: %s', command)
+                self.log.warning('remote command: %s' % command)
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Remote command failed')
-            self.log.error('remote command: %s', command)
+            self.log.error('remote command: %s' % command)
             raise
         return cmd_out_fmt
     def _nc_listen(self, recv_command):
@@ -252,7 +252,7 @@ class NewRemoteDataset(NewDataset):
             try:
                 # Set it up and send back the port that got used
                 self._exec_command(nc_cmd, timeout=5)
-                self.log.debug('nc listen established on port %s', port)
+                self.log.debug('nc listen established on port %s' % port)
                 return port
             except paramiko.SSHException as exception:
                 self.log.debug(exception)
@@ -307,8 +307,8 @@ class NewRemoteDataset(NewDataset):
         Takes a subprocess as input and reads from its stdout. If the initialise
         flag is set, it attempts a -F recv 
         '''
-        if initialise: recv_cmd = 'zfs recv -F %s', self.name
-        else: recv_cmd = 'zfs recv %s', self.name
+        if initialise: recv_cmd = 'zfs recv -F %s' % self.name
+        else: recv_cmd = 'zfs recv %s' % self.name
         try:
             port = self._nc_listen(recv_cmd)
             conduit = self._get_connection(port)
