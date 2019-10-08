@@ -331,7 +331,7 @@ def processDataset(Thread):
     snapshot if appropriate, sending if appropriate and pruning if appropriate
     '''
     def __init__(self, dataset, run_tag):
-        super().__init__(self)
+        Thread.__init__(self)
         self.source = dataset
         self.destination = None
         self.run_tag = run_tag
