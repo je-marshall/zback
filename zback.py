@@ -226,7 +226,7 @@ class NewRemoteDataset(NewDataset):
             cmd_in, cmd_out, cmd_err = self.sshclient.exec_command(command)
             cmd_out_fmt = cmd_out.read().decode()
             cmd_err_fmt = cmd_err.read().decode()
-            if cerr_fmt:
+            if cmd_err_fmt:
                 self.log.debug('stderr: %s' % cmd_err_fmt)
                 self.log.warning('Remote command returned stderr')
                 self.log.warning('remote command: %s' % command)
