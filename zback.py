@@ -330,9 +330,9 @@ class datasetProcessor(Thread):
     Accepts a local dataset and does a run on it. This consists of taking a
     snapshot if appropriate, sending if appropriate and pruning if appropriate
     '''
-    def __init__(self, dataset, run_tag, initialise=False):
+    def __init__(self, source, run_tag, initialise=False):
         Thread.__init__(self)
-        self.source = dataset
+        self.source = source
         self.run_tag = run_tag
         self.initialise = initialise
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
