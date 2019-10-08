@@ -442,6 +442,8 @@ class datasetProcessor(Thread):
         Performs a run on a dataset. 
         '''
         self.log.info('Beginning run with tag %s', self.run_tag)
+        # NOTE possibly worth removing or clarifying when to setup logging
+        self.source.get_props()
         try:
             if self.run_tag in self.source.props['recv']:
                 self.log.info('Tag received from source, no need to snap')
