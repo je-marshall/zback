@@ -183,32 +183,32 @@ class NewRemoteDataset(NewDataset):
         try:
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
-            self.sshclient.connect(host)
+            self.sshclient.connect(self.host)
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'bad host key' % dest_fmt[1])
+                            'bad host key' % self.host)
             raise ConnectionError
         except paramiko.AuthenticationException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'authentication failure' % dest_fmt[1])
+                            'authentication failure' % self.host)
             raise ConnectionError
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'check logs' % dest_fmt[1])
+                            'check logs' % self.host)
             raise ConnectionError
         except socket.error as exception:
             self.log.debug(exception)
             self.log.error('Socket error while connecting to ' \
-                            '%s' % dest_fmt[1])
+                            '%s' % self.host)
             raise ConnectionError
         except IndexError as exception:
             self.log.debug(exception)
             self.log.debug('Dest string: %s' % destination)
             self.log.error('Destination incorrectly formatted for ' \
-                            'dataset %s' % self.dataset.name)
+                            'dataset %s' % self.name)
             raise ConnectionError
         except IOError as exception:
             self.log.debug(exception)
