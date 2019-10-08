@@ -351,7 +351,7 @@ class datasetProcessor(Thread):
         self.log.debug('send_hold: %s', send_hold)
         try:
             for snap in self.source.holdlist:
-                if send_hold in self.local_dest.get_holds(snap):
+                if send_hold in self.source.get_holds(snap):
                     # Abort if ANY send is in progress for this dataset. This is
                     # important as sends are meant to be called sequentially,
                     # not sure what the deal would be with sending the same
