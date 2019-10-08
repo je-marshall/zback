@@ -444,7 +444,7 @@ class datasetProcessor(Thread):
         self.log.info('Beginning run with tag %s', self.run_tag)
         # NOTE possibly worth removing or clarifying when to setup logging
         self.source.get_props()
-        self.log.debug(props)
+        self.log.debug(self.source.props)
         try:
             if self.run_tag in self.source.props['recv']:
                 self.log.info('Tag received from source, no need to snap')
@@ -461,7 +461,11 @@ class datasetProcessor(Thread):
             self.log.debug('No send jobs specified')
             self._prune()
             return
+        except Exception as exception:
+            self.log.debug(exception)
+            return
         if send_jobs:
+            self.log.debug('send jobs: %s', send_jobs)
             self.source.get_holdlist()
             self.log.debug('Send jobs specified')
             for job in send_jobs:
