@@ -346,6 +346,7 @@ class datasetProcessor(Thread):
         # Now that we've checked the tag for sending, strip it from the string
         # to leave only protocol and destination
         dest_str = job.lstrip('%s:' % self.run_tag)
+        self.log.debug('dest_str: %s', dest_str)
         send_hold = '%s:SEND' % dest_str
         try:
             for snap in self.source.holdlist:
@@ -359,9 +360,6 @@ class datasetProcessor(Thread):
                     raise BlockingIOError('Send in progress')
         except IndexError:
             self.log.debug('No held snapshot')
-        # Pull this out in case it gets modified by anything else in the
-        # meantime and also cuts down on typing
-        
         # This IS a send job, AND no sends are currently in progress so we can
         # go ahead and try to connect to the destination dataset, after putting
         # a send hold on
