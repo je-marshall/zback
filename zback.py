@@ -348,6 +348,7 @@ class datasetProcessor(Thread):
         dest_str = job.lstrip('%s:' % self.run_tag)
         self.log.debug('dest_str: %s', dest_str)
         send_hold = '%s:SEND' % dest_str
+        self.log.debug('send_hold: %s', send_hold)
         try:
             for snap in self.source.holdlist:
                 if send_hold in self.local_dest.get_holds(snap):
