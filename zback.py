@@ -99,7 +99,7 @@ class NewDataset():
         '''
         snap_cmd = 'zfs list -H -t snap -s creation -o name -r %s' % self.name
         all_snaps = self._exec_command(snap_cmd)
-        self.snaplist = [snap for snap in snapshots.rstrip('\n').split('\n') \
+        self.snaplist = [snap for snap in all_snaps.rstrip('\n').split('\n') \
                         if PROP in snap]
     def take_snap(self, tag):
         '''
