@@ -325,15 +325,16 @@ class NewRemoteDataset(NewDataset):
         self.log.info('Send successful')
         conduit.close()
 
-def datasetProcessor(Thread):
+class datasetProcessor(Thread):
     '''
     Accepts a local dataset and does a run on it. This consists of taking a
     snapshot if appropriate, sending if appropriate and pruning if appropriate
     '''
-    def __init__(self, dataset, run_tag):
+    def __init__(self, dataset, run_tag, initialise=False):
         Thread.__init__(self)
         self.source = dataset
         self.run_tag = run_tag
+        self.initialise = initialise
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
         self.destination = None
     def _send_receive(self, job):
@@ -408,7 +409,7 @@ def datasetProcessor(Thread):
                     continue
     def _prune(self):
         '''
-        Using this runs tag, figures out how many snapshots need to be deleted
+        Using this run_tag, figures out how many snapshots need to be deleted
         and then does the necessary tidying up
         '''
         self.log.info('Beginning prune')
@@ -462,7 +463,7 @@ def datasetProcessor(Thread):
             self.log.debug('Send jobs specified')
             for job in send_jobs:
                 try:
-                    self.send_receive(job)
+                    self._send_receive(job)
                 except BlockingIOError:
                     continue
                 except subprocess.CalledProcessError:
