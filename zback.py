@@ -365,7 +365,7 @@ class datasetProcessor(Thread):
         # This IS a send job, AND no sends are currently in progress so we can
         # go ahead and try to connect to the destination dataset, after putting
         # a send hold on
-        self.source.hold_snap(sending_snap, send_hold)
+        self.source.hold_snap(self.sending_snap, send_hold)
         # Figure out what type of send we're doing and instantiate the right
         # class:
         if 'local:' in dest_str:
@@ -383,9 +383,9 @@ class datasetProcessor(Thread):
         sendproc = self.source.send()
         self.destination.receive(sendproc)
         # Assuming that the send went correctly, then remove the send hold:
-        self.source.release_snap(sending_snap, send_hold)
+        self.source.release_snap(self.sending_snap, send_hold)
         # Place a successful sent hold on source and dest
-        self.source.hold_snap(sending_snap, dest_str)
+        self.source.hold_snap(self.sending_snap, dest_str)
         # Destination hold reflects where it came from rather than its dest
         self.destination.get_snaps()
         self.destination.hold_snap(self.destination.latest_snap, \
@@ -394,7 +394,7 @@ class datasetProcessor(Thread):
         # relevant
         self.source.get_holdlist()
         for snap in self.source.holdlist:
-            if snap != sending_snap:
+            if snap != self.sending_snap:
                 try:
                     self.source.release_snap(snap, dest_str)
                 except subprocess.CalledProcessError:
@@ -454,6 +454,7 @@ class datasetProcessor(Thread):
             self.log.debug('No recv tags specified')
         self.log.info('Taking snapshot...')
         self.source.take_snap(tag=self.run_tag)
+        self.sending_snap = self.source.latest_snap
         try:
             send_tags = self.source.props['send'].split(',')
             send_jobs = [tag for tag in send_tags if self.run_tag in tag]
@@ -467,7 +468,6 @@ class datasetProcessor(Thread):
         if send_jobs:
             self.log.debug('send jobs: %s', send_jobs)
             self.source.get_holdlist()
-            self.log.debug('Send jobs specified')
             for job in send_jobs:
                 try:
                     self._send_receive(job)
