@@ -33,6 +33,300 @@ LOG_LVL=logging.WARNING
 HELP='''
      '''
 
+class NewDataset():
+    '''
+    Base Dataset class, implements local dataset handling functions. Is intended
+    to be subclassed to provide remote functionality.
+    '''
+    def __init__(self, name, logname):
+        self.name = name
+        self.props = None
+        self.log = logging.getLogger('zback.'.format(logname))
+        self.snaplist = None
+        self.holdlist = None
+        self.latest_snap = None
+    def _exec_command(self, command):
+        '''
+        Executes a command on a local dataset only. This function should be
+        overriden for remote datasets. If the command is successful it returns
+        the output, otherwise it logs and raises
+        '''
+        try:
+            result = subprocess.check_output(command.split(), \
+                                             stderr = subprocess.PIPE, \
+                                             universal_newlines = True)
+            self.log.debug('successful command: %s', command)
+        except subprocess.CalledProcessError:
+            self.log.debug('failed command: %s', command)
+            self.log.error('Error running ZFS command')
+            raise
+        # TODO Figure out better subprocess.stderr handling
+        return result
+    def get_props(self):
+        '''
+        Updates the internal property dictionary
+        '''
+        prop_cmd = 'zfs get all -H -o property,value %s', self.name
+        all_props = self._exec_command(prop_cmd)
+        self.props = {re.sub(PROP, '', k):v for k,v in \
+                      [prop.split('\t') for prop in all_props.split('\n') \
+                      if PROP in prop]}
+    def set_prop(self, prop, value):
+        '''
+        Set a property
+        '''
+        set_cmd = 'zfs set %s=%si %s', PROP+prop, value, self.name
+        self._exec_command(set_cmd)
+    def get_holdlist(self):
+        '''
+        Update internal holdlist
+        '''
+        holdlist_cmd = 'zfs get userrefs -H -r %s', self.name
+        holdlist = self._exec_command(holdlist_cmd)
+        self.holdlist = [snap.split('\t')[0] for snap in holdlist.split('\n') \
+                        if '@' in snap and int(snap.split('\t')[-2])]
+    def get_holds(self, snap):
+        '''
+        Returns a formatted list of holds placed on a snapshot
+        '''
+        holds_cmd = 'zfs holds -H %s', snap
+        holds = self._exec_command(holds_cmd)
+        return [hold.split('\t')[1].strip() for hold in \
+                holds.strip('\n').split('\n')]
+    def get_snaps(self):
+        '''
+        Updates internal snaplist
+        '''
+        snap_cmd = 'zfs list -H -t snap -s creation -o name -r %s', self.name
+        all_snaps = self._exec_command(snap_cmd)
+        self.snaplist = [snap for snap in snapshots.rstrip('\n').split('\n') \
+                        if PROP in snap]
+    def take_snap(self, tag):
+        '''
+        Takes a snapshot
+        '''
+        nowstamp = PROP + datetime.now().strftime(TIMEFMT) + ':%s', tag
+        take_cmd = 'zfs snap %s@%s', self.name, nowstamp
+        self._exec_command(take_cmd)
+        # Set the latest snapshot now, for sending purposes
+        self.get_snaps()
+        self.latest_snap = self.snaplist[-1]
+    def destroy_snap(self, snap):
+        '''
+        Destroys a snapshot
+        '''
+        destroy_cmd = 'zfs destroy %s', snap
+        self._exec_command(destroy_cmd)
+        self.get_snaps()
+    def hold_snap(self, snap, ref):
+        '''
+        Places a userref on a snapshot
+        '''
+        hold_cmd = 'zfs hold %s %s', ref, snap
+        self._exec_command(hold_cmd)
+        # Not sure about this bit
+        self.get_holdlist()
+    def release_snap(self, snap, ref):
+        '''
+        Releases a hold placed on a snapshot
+        '''
+        release_cmd = 'zfs release %s %s', ref, snap
+        self._exec_command(release_cmd)
+        # Not sure about this bit
+        self.get_holdlist()
+    def send(self):
+        '''
+        Something only a source dataset can do
+        '''
+        self.get_snaps()
+        # Check this syntax
+        send_cmd = ('zfs send -c %s', self.latest_snap).split()
+        try:
+            sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
+            self.log.debug('successful cmd: %s', send_cmd)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
+            self.log.error('Error running ZFS send command')
+            raise
+        # TODO Figure out better subprocess.stderr handling
+        return sendproc
+    def receive(self, sendproc, initialise=False):
+        '''
+        Receive for local dataset only, should be subclassed for remote
+        '''
+        if initialise: recv_cmd = 'zfs recv -F %s', self.name
+        else: recv_cmd = 'zfs recv %s', self.name
+        try:
+            recvproc = subprocess.Popen(recv_cmd.split(), \
+                                        stdin=sendproc.stdout)
+            while recvproc.poll() is None:
+                time.sleep(1)
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
+            raise
+        self.log.info('Send successful')
+
+class NewRemoteDataset(NewDataset):
+    '''
+    Subclassed to override a couple of functions. On initialisation attempts to
+    establish an SSH connection to the remote side and will raise if not
+    '''
+    def __init__(self, name, logname, host, connection_type):
+        super().__init__(name, logname)
+        self.host = host
+        self.connection_type = connection_type
+        self.sshclient = None
+        self._get_ssh_client()
+        # Run this now to throw an instant error
+        self.get_snaps()
+    def _get_ssh_client(self):
+        try:
+            self.sshclient = paramiko.client.SSHClient()
+            self.sshclient.load_system_host_keys()
+            self.sshclient.connect(host)
+        except paramiko.BadHostKeyException as exception:
+            self.log.debug(exception)
+            self.log.error('Could not connect to host %s, ' \
+                            'bad host key', dest_fmt[1])
+            raise ConnectionError
+        except paramiko.AuthenticationException as exception:
+            self.log.debug(exception)
+            self.log.error('Could not connect to host %s, ' \
+                            'authentication failure', dest_fmt[1])
+            raise ConnectionError
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
+            self.log.error('Could not connect to host %s, ' \
+                            'check logs', dest_fmt[1])
+            raise ConnectionError
+        except socket.error as exception:
+            self.log.debug(exception)
+            self.log.error('Socket error while connecting to ' \
+                            '%s', dest_fmt[1])
+            raise ConnectionError
+        except IndexError as exception:
+            self.log.debug(exception)
+            self.log.debug('Dest string: %s', destination)
+            self.log.error('Destination incorrectly formatted for ' \
+                            'dataset %s', self.dataset.name)
+            raise ConnectionError
+        except IOError as exception:
+            self.log.debug(exception)
+            self.log.error('Could not load system host keys')
+            raise ConnectionError
+        except Exception as exception:
+            self.log.debug(exception)
+            raise
+    def _exec_command(self, command):
+        '''
+        Runs a remote command and outputs in the same way as the super class
+        does, returns the stdout if possible and raises if not
+        '''
+        try:
+            cmd_in, cmd_out, cmd_err = self.sshclient.exec_command(command)
+            cmd_out_fmt = cout.read().decode()
+            cmd_err_fmt = cerr.read().decode()
+            if cerr_fmt:
+                self.log.debug('stderr: %s', cmd_err_stderr)
+                self.log.warning('Remote command returned stderr')
+                self.log.warning('remote command: %s', command)
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
+            self.log.error('Remote command failed')
+            self.log.error('remote command: %s', command)
+            raise
+        return cmd_out_fmt
+    def _nc_listen(self, recv_command):
+        '''
+        Attempt to start a netcat listen process on the remote end. This is
+        useful for either a direct send or a send via ssh. TODO - look into
+        whitelisting for the direct send case or binding to localhost for the
+        ssh send case
+        '''
+        attempts = 5
+        while attempts >= 0:
+            # Ephemeral ports, pretty unlikely to be used
+            port = random.randint(32768, 60999)
+            nc_cmd = 'nc -l {0} -e "{1}"'.format(port, \
+                                                 recv_command)
+            try:
+                # Set it up and send back the port that got used
+                self._exec_command(nc_cmd, timeout=5)
+                self.log.debug('nc listen established on port %s', port)
+                return port
+            except paramiko.SSHException as exception:
+                self.log.debug(exception)
+                self.log.warning('Could not set up netcat on remote' \
+                                ' end, aborting')
+                attempts-=1
+                continue
+            except socket.timeout as exception:
+                self.log.debug(exception)
+                self.log.warning('Timed out waiting for nc command')
+                attempt-=1
+                continue
+        # If 5 attempts, assume something screwy is going on and bail
+        raise ConnectionError('Could not establish nc listener on remote after ' \
+                              'multiple attempts')
+    def _get_connection(self, port):
+        '''
+        Wraps _nc_listen and returns either a direct socket connection or a
+        paramiko Channel that can be written to and responds to the same calls
+        to close
+        '''
+        if self.connection_type == 'nc':
+            try:
+                self.log.debug('attempting direct send')
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect((self.host, port))
+                self.log.debug('direct connection established')
+                return sock
+            except socket.error as exception:
+                self.log.debug(exception)
+                raise ConnectionError('Direct socket connect failed')
+        elif self.connection_type == 'ssh':
+            try:
+                self.log.debug('attempting ssh send')
+                transport = self.sshclient.get_transport()
+                channel = transport.open_channel('direct-tcpip', \
+                                                 dest_addr=(self.host, port), \
+                                                 src_addr=('localhost', port))
+                self.log.debug('ssh channel opened')
+                return channel
+            except paramiko.SSHException as exception:
+                self.log.debug(exception)
+                raise ConnectionError('SSH channel connect failed')
+    def get_props(self):
+        '''
+        Overridden so as not to accidentally actually read the remote datasets
+        properties as we don't care for them?
+        '''
+        pass
+    def receive(self, sendproc, initialise=False):
+        '''
+        Takes a subprocess as input and reads from its stdout. If the initialise
+        flag is set, it attempts a -F recv 
+        '''
+        if initialise: recv_cmd = 'zfs recv -F %s', self.name
+        else: recv_cmd = 'zfs recv %s', self.name
+        try:
+            port = self._nc_listen(recv_cmd)
+            conduit = self._get_connection(port)
+            while sendproc.poll() is None:
+                data = sendproc.stdout.read(4096)
+                if data:
+                    conduit.send(data)
+                else:
+                    break
+        except ConnectionError:
+            raise
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
+            raise
+        self.log.info('Send successful')
+        conduit.close()
+
+
 def zbx_send(dsname, key, value, log):
     '''
     Sends updates to Zabbix. Does not check validity of global config variables.
@@ -83,6 +377,9 @@ class DatasetWorker(Thread):
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
         self._get_send_tags()
         self._get_recv_tags()
+        self.remote_snaplist = None
+        self.latest_remote = None
+        self.sshclient = None
     def _get_send_tags(self):
         '''
         Updates the local send tags
@@ -163,7 +460,7 @@ class DatasetWorker(Thread):
                 return
             else:
                 self.log.error('Could not place hold on remote snapshot %s', snap)
-                selg.log.debug(rholderr)
+                self.log.debug(rholderr)
         except paramiko.SSHException:
             self.log.error('Could not place hold on remote snapshot %s', snap)
             raise
@@ -583,6 +880,7 @@ class Dataset():
         self.log = logging.getLogger('zback.{0}'.format(self.name))
         self._setup_logging()
         self.get_snaps()
+        self.holdlist = None
     def _setup_logging(self):
         try:
             logfile = LOG_DIR+self.name.split('/')[-1]+'.log'
