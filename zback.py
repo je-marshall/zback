@@ -121,13 +121,13 @@ class NewDataset():
         '''
         Places a userref on a snapshot
         '''
-        hold_cmd = 'zfs hold %s %s' % ref, snap
+        hold_cmd = 'zfs hold %s %s' % (ref, snap)
         self._exec_command(hold_cmd)
     def release_snap(self, snap, ref):
         '''
         Releases a hold placed on a snapshot
         '''
-        release_cmd = 'zfs release %s %s' % ref, snap
+        release_cmd = 'zfs release %s %s' % (ref, snap)
         self._exec_command(release_cmd)
     def send(self, increm=None):
         '''
