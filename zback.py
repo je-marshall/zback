@@ -250,7 +250,7 @@ class NewRemoteDataset(NewDataset):
                                                  recv_command)
             try:
                 # Set it up and send back the port that got used
-                self._exec_command(nc_cmd, timeout=5)
+                self._exec_command(nc_cmd)
                 self.log.debug('nc listen established on port %s' % port)
                 return port
             except paramiko.SSHException as exception:
