@@ -333,9 +333,9 @@ def processDataset(Thread):
     def __init__(self, dataset, run_tag):
         Thread.__init__(self)
         self.source = dataset
-        self.destination = None
         self.run_tag = run_tag
         self.log = logging.getLogger('zback.{0}'.format(self.dataset.name))
+        self.destination = None
     def _send_receive(self, job):
         '''
         '''
