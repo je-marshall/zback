@@ -325,7 +325,7 @@ class NewRemoteDataset(NewDataset):
         self.log.info('Send successful')
         conduit.close()
 
-def processDataset(Thread):
+def datasetProcessor(Thread):
     '''
     Accepts a local dataset and does a run on it. This consists of taking a
     snapshot if appropriate, sending if appropriate and pruning if appropriate
