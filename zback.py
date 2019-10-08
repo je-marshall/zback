@@ -455,8 +455,8 @@ class datasetProcessor(Thread):
         self.log.info('Taking snapshot...')
         self.source.take_snap(tag=self.run_tag)
         try:
-            send_jobs = [tag for tag in self.source.props['send'] \
-                        if self.run_tag in tag]
+            send_tags = self.source.props['send'].split(',')
+            send_jobs = [tag for tag in send_tags if self.run_tag in tag]
         except KeyError:
             self.log.debug('No send jobs specified')
             self._prune()
