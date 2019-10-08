@@ -452,9 +452,9 @@ class datasetProcessor(Thread):
         except KeyError:
             self.log.debug('No recv tags specified')
         self.log.info('Taking snapshot...')
-        self.local_dataset.take_snap(tag=self.run_tag)
+        self.source.take_snap(tag=self.run_tag)
         try:
-            send_jobs = [tag for tag in self.local_dataset.props['send'] \
+            send_jobs = [tag for tag in self.source.props['send'] \
                         if self.run_tag in tag]
         except KeyError:
             self.log.debug('No send jobs specified')
