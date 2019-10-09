@@ -216,13 +216,13 @@ class NewRemoteDataset(NewDataset):
         except Exception as exception:
             self.log.debug(exception)
             raise
-    def _exec_command(self, command):
+    def _exec_command(self, command, timeout=None):
         '''
         Runs a remote command and outputs in the same way as the super class
         does, returns the stdout if possible and raises if not
         '''
         try:
-            cmd_in, cmd_out, cmd_err = self.sshclient.exec_command(command)
+            cmd_in, cmd_out, cmd_err = self.sshclient.exec_command(command, timeout=timeout)
             cmd_out_fmt = cmd_out.read().decode()
             cmd_err_fmt = cmd_err.read().decode()
             if cmd_err_fmt:
@@ -250,7 +250,7 @@ class NewRemoteDataset(NewDataset):
                                                  recv_command)
             try:
                 # Set it up and send back the port that got used
-                self._exec_command(nc_cmd)
+                self._exec_command(nc_cmd, timeout=3)
                 self.log.debug('nc listen established on port %s' % port)
                 return port
             except paramiko.SSHException as exception:
@@ -262,7 +262,7 @@ class NewRemoteDataset(NewDataset):
             except socket.timeout as exception:
                 self.log.debug(exception)
                 self.log.warning('Timed out waiting for nc command')
-                attempt-=1
+                attempts-=1
                 continue
         # If 5 attempts, assume something screwy is going on and bail
         raise ConnectionError('Could not establish nc listener on remote after ' \
