@@ -364,26 +364,42 @@ class datasetProcessor(Thread):
         # This IS a send job, AND no sends are currently in progress so we can
         # go ahead and try to connect to the destination dataset, after putting
         # a send hold on
+        self.log.debug('Placing send hold before starting send')
         self.source.hold_snap(self.sending_snap, send_hold)
         # Figure out what type of send we're doing and instantiate the right
         # class:
         if 'local:' in dest_str:
+            self.log.debug('Destination is local')
             dest_name = dest_str.split(':')[-1], \
                 self.destination = NewDataset(dest_name, self.source.name)
         else:
+            self.log.debug('Destination is remote')
             protocol, host, dest_name = dest_str.split(':')
             self.destination = NewRemoteDataset(dest_name, host, protocol, \
                                                 self.source.name)
+        self.log.debug('Destination set up, checking latest matching snap')
         # None of the following have any try: excepts because they all need to
         # operate in sequence and if any of them fail they will be handled by
         # the run function.
         # Now that we have a destination dataset set up, we need to check their
         # respective snaplists:
         try:
-            sendproc = self.source.send()
-            self.destination.receive(sendproc)
+            self.destination.get_snaps()
+            if self.destination.latest_snap:
+                src_match = [snap for snap in self.source.snaplist \
+                            if snap.split('@')[-1] == \
+                            self.destination.latest_snap.split('@')[-1]].pop()
+        except IndexError:
+            self.log.debug('No common snapshots, will fail unless initialising')
+            src_match = None    
+        self.log.debug('src_match: %s', src_match)
+        try:
+            self.log.debug('Beginning send')
+            sendproc = self.source.send(increm=src_match)
+            self.destination.receive(sendproc, initialise=self.initialise)
         except Exception:
             # Doesn't matter what went wrong, pull the send hold and bail
+            self.log.debug('Error during sending, attempting to release send hold')
             self.source.release_snap(self.sending_snap, send_hold)
             raise
         # Assuming that the send went correctly, then remove the send hold:
