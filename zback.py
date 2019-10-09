@@ -382,7 +382,8 @@ class datasetProcessor(Thread):
         try:
             sendproc = self.source.send()
             self.destination.receive(sendproc)
-        except (subprocess.CalledProcessError, ConnectionError):
+        except Exception:
+            # Doesn't matter what went wrong, pull the send hold and bail
             self.source.release_snap(self.sending_snap, send_hold)
             raise
         # Assuming that the send went correctly, then remove the send hold:
