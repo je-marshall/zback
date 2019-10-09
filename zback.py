@@ -379,8 +379,12 @@ class datasetProcessor(Thread):
         # the run function.
         # Now that we have a destination dataset set up, we need to check their
         # respective snaplists:
-        sendproc = self.source.send()
-        self.destination.receive(sendproc)
+        try:
+            sendproc = self.source.send()
+            self.destination.receive(sendproc)
+        except (subprocess.CalledProcessError, ConnectionError):
+            self.source.release_snap(self.sending_snap, send_hold)
+            raise
         # Assuming that the send went correctly, then remove the send hold:
         self.source.release_snap(self.sending_snap, send_hold)
         # Place a successful sent hold on source and dest
