@@ -314,7 +314,7 @@ class NewRemoteDataset(NewDataset):
         try:
             self.log.debug('Setting up NC listener on remote')
             port = self._nc_listen(recv_cmd)
-            self.log.debug('Establishing connection to remote port')
+            self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
             self.log.debug('Connection established, send underway')
             while sendproc.poll() is None:
