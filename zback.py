@@ -306,11 +306,17 @@ class NewRemoteDataset(NewDataset):
         Takes a subprocess as input and reads from its stdout. If the initialise
         flag is set, it attempts a -F recv 
         '''
-        if initialise: recv_cmd = 'zfs recv -F %s' % self.name
-        else: recv_cmd = 'zfs recv %s' % self.name
+        if initialise: 
+            recv_cmd = 'zfs recv -F %s' % self.name
+        else: 
+            recv_cmd = 'zfs recv %s' % self.name
+        self.log.debug('recv_cmd: %s' % recv_cmd)
         try:
+            self.log.debug('Setting up NC listener on remote')
             port = self._nc_listen(recv_cmd)
+            self.log.debug('Establishing connection to remote port')
             conduit = self._get_connection(port)
+            self.log.debug('Connection established, send underway')
             while sendproc.poll() is None:
                 data = sendproc.stdout.read(4096)
                 if data:
