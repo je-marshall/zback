@@ -389,6 +389,8 @@ class datasetProcessor(Thread):
                 src_match = [snap for snap in self.source.snaplist \
                             if snap.split('@')[-1] == \
                             self.destination.latest_snap.split('@')[-1]].pop()
+            else:
+                src_match = None
         except IndexError:
             self.log.debug('No common snapshots, will fail unless initialising')
             src_match = None    
