@@ -323,8 +323,6 @@ class NewRemoteDataset(NewDataset):
                 data = sendproc.stdout.read(4096)
                 if data:
                     conduit.send(data)
-                else:
-                    break
         except ConnectionError:
             raise
         except subprocess.CalledProcessError as exception:
