@@ -163,6 +163,9 @@ class NewDataset():
         except subprocess.CalledProcessError as exception:
             self.log.debug(exception)
             raise
+        except Exception as exception:
+            self.log.debug(exception)
+            raise
         self.log.info('Send successful')
 
 class NewRemoteDataset(NewDataset):
@@ -332,6 +335,7 @@ class NewRemoteDataset(NewDataset):
             raise
         except Exception as exception:
             self.log.debug(exception)
+            raise
         self.log.info('Send successful')
         conduit.close()
 
