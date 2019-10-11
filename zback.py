@@ -310,9 +310,9 @@ class NewRemoteDataset(NewDataset):
         flag is set, it attempts a -F recv 
         '''
         if initialise: 
-            recv_cmd = 'zfs recv -F %s' % self.name
+            recv_cmd = '/sbin/zfs recv -F %s' % self.name
         else: 
-            recv_cmd = 'zfs recv %s' % self.name
+            recv_cmd = '/sbin/zfs recv %s' % self.name
         self.log.debug('recv_cmd: %s' % recv_cmd)
         try:
             self.log.debug('Setting up NC listener on remote')
