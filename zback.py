@@ -401,6 +401,7 @@ class datasetProcessor(Thread):
         # respective snaplists:
         try:
             self.destination.get_snaps()
+            self.log.debug('dest snaplist: %s' % self.destination.snaplist)
             if self.destination.latest_snap:
                 src_match = [snap for snap in self.source.snaplist \
                             if snap.split('@')[-1] == \
