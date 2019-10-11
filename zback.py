@@ -318,7 +318,7 @@ class NewRemoteDataset(NewDataset):
             time.sleep(1)
             self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
-            self.log.debug('Connection established, running send from source')
+            self.log.debug('Running send from source')
             sendproc = source.send(increm=increm)
             while sendproc.poll() is None:
                 data = sendproc.stdout.read(4096)
@@ -330,6 +330,8 @@ class NewRemoteDataset(NewDataset):
         except subprocess.CalledProcessError as exception:
             self.log.debug(exception)
             raise
+        except Exception as exception:
+            self.log.debug(exception)
         self.log.info('Send successful')
         conduit.close()
 
