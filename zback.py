@@ -564,8 +564,9 @@ def main():
         Parse args and decide what to do
     '''
     parser = argparse.ArgumentParser(description=HELP)
-    parser.add_argument('tag', \
-                        nargs='?', \
+    parser.add_argument('-t', \
+                        'tag', \
+                        nargs=1, \
                         help='Tag for this run', \
                         action='store')
     parser.add_argument('-i', '--initialise', \
@@ -591,7 +592,7 @@ def main():
     if args.zabbix:
         print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
         sys.exit(0)
-    if args.tag == None:
+    if not args.tag:
         print('Must specify tag for this run')
         sys.exit(1)
     for dataset in dsets:
