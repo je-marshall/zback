@@ -33,12 +33,12 @@ LOG_LVL=logging.WARNING
 HELP='''
      '''
 
-class NewDataset():
+class Dataset():
     '''
     Base Dataset class, implements local dataset handling functions. Is intended
     to be subclassed to provide remote functionality.
     '''
-    def __init__(self, name, logname):
+    def __init__(self, name, logname=None):
         self.name = name
         self.props = None
         self.log = logging.getLogger('zback.'.format(logname))
@@ -167,7 +167,7 @@ class NewDataset():
             raise
         self.log.info('Send successful')
 
-class NewRemoteDataset(NewDataset):
+class RemoteDataset(Dataset):
     '''
     Subclassed to override a couple of functions. On initialisation attempts to
     establish an SSH connection to the remote side and will raise if not
@@ -387,11 +387,11 @@ class datasetProcessor(Thread):
         if 'local:' in dest_str:
             self.log.debug('Destination is local')
             dest_name = dest_str.split(':')[-1], \
-                self.destination = NewDataset(dest_name, self.source.name)
+                self.destination = Dataset(dest_name, self.source.name)
         else:
             self.log.debug('Destination is remote')
             protocol, host, dest_name = dest_str.split(':')
-            self.destination = NewRemoteDataset(dest_name, host, protocol, \
+            self.destination = RemoteDataset(dest_name, host, protocol, \
                                                 self.source.name)
         self.log.debug('Destination set up, checking latest matching snap')
         # None of the following have any try: excepts because they all need to
@@ -547,21 +547,17 @@ def zbx_send(dsname, key, value, log):
         log.warning('Error sending to zabbix, check config')
         raise ConnectionError
 
-
-def get_all_datasets(disco=False):
+def get_zback_sets():
     '''
-    Returns a list of all datasets
+    Returns a list of zback managed datasets
     '''
-    CMD = ['zfs', 'list', '-H', '-o', 'name']
+    get_cmd = ['zfs', 'get', '-H', '-o', 'name,property,value', '%smanage' % PROP]
     try:
-        datasets = subprocess.check_output(CMD, stderr=subprocess.PIPE, \
-                                           universal_newlines=True)
-    except subprocess.CalledProcessError as exception:
-        self.log.error(exception.output)
+        zback_sets = subprocess.check_output(get_cmd, universal_newlines=True)
+    except subprocess.CalledProcessError:
         raise
-    return [dset for dset in datasets.split('\n') \
-            if len(dset.split('/')) > 1]
-
+    return [dset.split('\t')[0] for dset in zback_sets.strip('\n').split('\n') \
+            if dset.split('\t')[-1] == 'yes' and '@' not in dset]
 
 def main():
     '''
@@ -572,16 +568,11 @@ def main():
                         nargs='?', \
                         help='Tag for this run', \
                         action='store')
-    parser.add_argument('-d', '--dataset', \
-                        nargs=1, \
-                        help='Limit to one dataset', \
-                        action='store')
-    parser.add_argument('-p', '--prune', \
-                        help='Prune this tag only', \
-                        action='store_true')
     parser.add_argument('-i', '--initialise', \
-                        help='Attempt to initialise destination datasets', \
-                        action='store_true')
+                        nargs=1, \
+                        help='Attempt to initialise this dataset', \
+                        const=None, \
+                        action='store')
     parser.add_argument('-v', \
                         '--verbose', \
                         help='Prints debug output to console', \
@@ -597,45 +588,21 @@ def main():
         handler.setFormatter(formatter)
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
-    dsets = []
-    for dataset in get_all_datasets():
-        try:
-            dset = Dataset(dataset, args.verbose)
-            dsets.append(dset)
-            if args.verbose:
-                log.debug('Managing dataset: %s', dset.name)
-        except (KeyError, AssertionError):
-            if args.verbose:
-                log.debug('Dataset %s not managed, skipping', dataset)           
-            continue
-        except FileNotFoundError:
-            print('Logging directory not configured correctly')
-            sys.exit(1)
-        except subprocess.CalledProcessError:
-            print('ZFS list command failed')
-            sys.exit(1)
-    if not dsets:
-        print('No datasets configured, nothing to do')
-        sys.exit(0)
-    disco_sets = [dset for dset in dsets if dset.props['manage'] == 'yes']
+    dsets = get_zback_sets()
     if args.zabbix:
-        print(json.dumps({'data':[{'#ELEMNAME':dset.name} for dset in disco_sets]}))
-        sys.exit(0)
-    if not args.tag:
-        print('Must supply tag')
-        sys.exit(1)
-    if args.dataset:
-        this_dset = [dset for dset in dsets if args.dataset in dset]
-        if this_dset:
-            this_dset_run = DatasetWorker(dset, args.tag, \
-                                          args.initialise, args.prune)
-            this_dset_run.start()
+        print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
+    for dataset in dsets:
+        if args.initialise == dataset:
+            this_run = datasetProcessor(Dataset(dataset), args.tag)
+            this_run.start()
+            this_run.join()
             sys.exit(0)
-    else:
-        for dset in disco_sets:
-            this_dset_run = DatasetWorker(dset, args.tag, \
-                                          args.initialise, args.prune)
-            this_dset_run.start()
+        elif args.initialise:
+            print('Dataset to initialise not managed by %s', PROP.rstrip(':'))
+            print('Check config and try again')
+            sys.exit(1)
+        this_thread = datasetProcessor(Dataset(dataset), args.tag)
+        this_thread.start()
 
 if __name__ == '__main__':
     main()
