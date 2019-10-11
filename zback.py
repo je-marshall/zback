@@ -19,7 +19,7 @@ import paramiko
 # to change these go ahead.
 # PROP must be of the form [a-z]*: otherwise it makes it a pain to send to
 # Zabbix, feel free to ignore this stipulation if you have turned off sending.
-PROP='zback:'
+PROP='test:'
 TIMEFMT='%Y-%m-%d-%H%M'
 DEFTAGS={'hourly' : '48', \
          'daily' : '7', \
@@ -567,12 +567,10 @@ def main():
     parser.add_argument('tag', \
                         nargs='?', \
                         help='Tag for this run', \
-                        const=None, \
                         action='store')
     parser.add_argument('-i', '--initialise', \
                         nargs=1, \
                         help='Attempt to initialise this dataset', \
-                        const=None, \
                         action='store')
     parser.add_argument('-v', \
                         '--verbose', \
