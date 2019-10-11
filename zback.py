@@ -323,7 +323,6 @@ class NewRemoteDataset(NewDataset):
             while sendproc.poll() is None:
                 data = sendproc.stdout.read(4096)
                 if data:
-                    self.log.debug(data)
                     conduit.send(data)
         except ConnectionError:
             raise
