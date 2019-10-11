@@ -181,6 +181,7 @@ class NewRemoteDataset(NewDataset):
         self._get_ssh_client()
         # Run this now to throw an instant error
         self.get_snaps()
+        self.latest_snap = self.snaplist[-1]
     def _get_ssh_client(self):
         try:
             self.sshclient = paramiko.client.SSHClient()
