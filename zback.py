@@ -417,7 +417,7 @@ class datasetProcessor(Thread):
         try:
             self.log.debug('Beginning send')
             sendproc = self.source.send(src_match)
-            self.destination.receive(self.source, initialise=self.initialise)
+            self.destination.receive(sendproc, initialise=self.initialise)
         except Exception as exception:
             self.log.debug(exception)
             # Doesn't matter what went wrong, pull the send hold and bail
