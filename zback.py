@@ -567,6 +567,7 @@ def main():
     parser.add_argument('tag', \
                         nargs='?', \
                         help='Tag for this run', \
+                        const=None, \
                         action='store')
     parser.add_argument('-i', '--initialise', \
                         nargs=1, \
@@ -591,6 +592,9 @@ def main():
     dsets = get_zback_sets()
     if args.zabbix:
         print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
+    if args.tag == None:
+        print('Must specify tag for this run')
+        sys.exit(1)
     for dataset in dsets:
         if args.initialise == dataset:
             this_run = datasetProcessor(Dataset(dataset), args.tag)
