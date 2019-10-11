@@ -565,7 +565,7 @@ def main():
     '''
     parser = argparse.ArgumentParser(description=HELP)
     parser.add_argument('-t', \
-                        'tag', \
+                        '--tag', \
                         nargs=1, \
                         help='Tag for this run', \
                         action='store')
