@@ -592,6 +592,7 @@ def main():
     dsets = get_zback_sets()
     if args.zabbix:
         print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
+        sys.exit(0)
     if args.tag == None:
         print('Must specify tag for this run')
         sys.exit(1)
