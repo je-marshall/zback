@@ -237,6 +237,7 @@ class NewRemoteDataset(NewDataset):
             self.log.error('Remote command failed')
             self.log.error('remote command: %s' % command)
             raise
+        self.log.debug('successful cmd: %s', command)
         return cmd_out_fmt
     def _nc_listen(self, recv_command):
         '''
