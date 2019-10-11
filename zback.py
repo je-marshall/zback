@@ -324,7 +324,7 @@ class NewRemoteDataset(NewDataset):
             self.log.debug('Running send from source')
             sendproc = source.send(increm=increm)
             while sendproc.poll() is None:
-                data = sendproc.stdout.read(4096)
+                data = sendproc.stdout.readline()
                 if data:
                     conduit.send(data)
         except ConnectionError:
