@@ -148,7 +148,7 @@ class NewDataset():
             raise
         # TODO Figure out better subprocess.stderr handling
         return sendproc
-    def receive(self, sendproc, initialise=False):
+    def receive(self, source, initialise=False, increm=None):
         '''
         Receive for local dataset only, should be subclassed for remote
         '''
@@ -156,7 +156,7 @@ class NewDataset():
         else: recv_cmd = 'zfs recv %s' % self.name
         try:
             recvproc = subprocess.Popen(recv_cmd.split(), \
-                                        stdin=sendproc.stdout)
+                                        stdin=source.send(increm=increm).stdout)
             while recvproc.poll() is None:
                 time.sleep(1)
         except subprocess.CalledProcessError as exception:
@@ -301,7 +301,7 @@ class NewRemoteDataset(NewDataset):
         properties as we don't care for them?
         '''
         pass
-    def receive(self, sendproc, initialise=False):
+    def receive(self, source, initialise=False, increm=None):
         '''
         Takes a subprocess as input and reads from its stdout. If the initialise
         flag is set, it attempts a -F recv 
@@ -318,7 +318,8 @@ class NewRemoteDataset(NewDataset):
             time.sleep(1)
             self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
-            self.log.debug('Connection established, send underway')
+            self.log.debug('Connection established, running send from source')
+            sendproc = source.send(increm=increm)
             while sendproc.poll() is None:
                 data = sendproc.stdout.read(4096)
                 if data:
