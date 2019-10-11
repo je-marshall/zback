@@ -603,7 +603,7 @@ def main():
             this_run.join()
             sys.exit(0)
         elif args.initialise:
-            print('Dataset to initialise not managed by %s', PROP.rstrip(':'))
+            print('Dataset to initialise not managed by %s' % PROP.strip(':'))
             print('Check config and try again')
             sys.exit(1)
         this_thread = datasetProcessor(Dataset(dataset), args.tag)
