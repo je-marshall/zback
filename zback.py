@@ -409,7 +409,8 @@ class datasetProcessor(Thread):
             self.log.debug('Beginning send')
             self.destination.receive(self.source, initialise=self.initialise, \
                                      increm=src_match)
-        except Exception:
+        except Exception as exception:
+            self.log.debug(exception)
             # Doesn't matter what went wrong, pull the send hold and bail
             self.log.debug('Error during sending, attempting to release send hold')
             self.source.release_snap(self.sending_snap, send_hold)
