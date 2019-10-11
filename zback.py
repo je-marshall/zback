@@ -589,6 +589,7 @@ def main():
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
     dsets = get_zback_sets()
+    print(args)
     if args.zabbix:
         print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
         sys.exit(0)
@@ -596,7 +597,7 @@ def main():
         print('Must specify tag for this run')
         sys.exit(1)
     for dataset in dsets:
-        if args.initialise == dataset:
+        if str(args.initialise) == dataset:
             this_run = datasetProcessor(Dataset(dataset), args.tag)
             this_run.start()
             this_run.join()
