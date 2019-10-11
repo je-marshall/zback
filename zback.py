@@ -420,6 +420,8 @@ class datasetProcessor(Thread):
             self.log.debug('Error during sending, attempting to release send hold')
             self.source.release_snap(self.sending_snap, send_hold)
             raise
+        # Have a little nap to allow the snapshots on the remote end to be updated
+        time.sleep(3)
         # Assuming that the send went correctly, then remove the send hold:
         self.source.release_snap(self.sending_snap, send_hold)
         # Place a successful sent hold on source and dest
