@@ -135,8 +135,8 @@ class NewDataset():
         '''
         self.get_snaps()
         if increm:
-            send_cmd = ('zfs send -c -i %s %s' % increm, \
-                        self.latest_snap).split()
+            send_cmd = ('zfs send -c -i %s %s' % (increm, \
+                        self.latest_snap)).split()
         else:
             send_cmd = ('zfs send -c %s' % self.latest_snap).split()
         try:
