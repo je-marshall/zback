@@ -405,8 +405,8 @@ class datasetProcessor(Thread):
         self.log.debug('src_match: %s', src_match)
         try:
             self.log.debug('Beginning send')
-            sendproc = self.source.send(increm=src_match)
-            self.destination.receive(sendproc, initialise=self.initialise)
+            self.destination.receive(self.source, initialise=self.initialise, \
+                                     increm=src_match)
         except Exception:
             # Doesn't matter what went wrong, pull the send hold and bail
             self.log.debug('Error during sending, attempting to release send hold')
