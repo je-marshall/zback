@@ -148,7 +148,7 @@ class NewDataset():
             raise
         # TODO Figure out better subprocess.stderr handling
         return sendproc
-    def receive(self, source, initialise=False, increm=None):
+    def receive(self, sendproc, initialise=False):
         '''
         Receive for local dataset only, should be subclassed for remote
         '''
@@ -156,7 +156,7 @@ class NewDataset():
         else: recv_cmd = 'zfs recv %s' % self.name
         try:
             recvproc = subprocess.Popen(recv_cmd.split(), \
-                                        stdin=source.send(increm=increm).stdout)
+                                        stdin=sendproc.stdout)
             while recvproc.poll() is None:
                 time.sleep(1)
         except subprocess.CalledProcessError as exception:
@@ -306,7 +306,7 @@ class NewRemoteDataset(NewDataset):
         properties as we don't care for them?
         '''
         pass
-    def receive(self, source, initialise=False, increm=None):
+    def receive(self, sendproc, initialise=False):
         '''
         Takes a subprocess as input and reads from its stdout. If the initialise
         flag is set, it attempts a -F recv 
@@ -324,7 +324,6 @@ class NewRemoteDataset(NewDataset):
             self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
             self.log.debug('Running send from source')
-            sendproc = source.send(increm=increm)
             while True:
                 data = sendproc.stdout.read(4096)
                 if data:
@@ -417,8 +416,8 @@ class datasetProcessor(Thread):
         self.log.debug('src_match: %s', src_match)
         try:
             self.log.debug('Beginning send')
-            self.destination.receive(self.source, initialise=self.initialise, \
-                                     increm=src_match)
+            sendproc = self.source.send(src_match)
+            self.destination.receive(self.source, initialise=self.initialise)
         except Exception as exception:
             self.log.debug(exception)
             # Doesn't matter what went wrong, pull the send hold and bail
