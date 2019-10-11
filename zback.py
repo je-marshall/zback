@@ -140,8 +140,7 @@ class NewDataset():
         else:
             send_cmd = ('zfs send -c %s' % self.latest_snap).split()
         try:
-            sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, \
-                                        universal_newlines=True)
+            sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
             self.log.debug('successful cmd: %s' % send_cmd)
         except subprocess.CalledProcessError as exception:
             self.log.debug(exception)
