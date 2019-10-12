@@ -243,41 +243,6 @@ class RemoteDataset(Dataset):
             raise
         self.log.debug('successful cmd: %s', command)
         return cmd_out_fmt
-    def _nc_listen(self, recv_command):
-        '''
-        Attempt to start a netcat listen process on the remote end. This is
-        useful for either a direct send or a send via ssh. TODO - look into
-        whitelisting for the direct send case or binding to localhost for the
-        ssh send case
-        '''
-        attempts = 5
-        while attempts >= 0:
-            # Ephemeral ports, pretty unlikely to be used
-            port = random.randint(32768, 60999)
-            if self.protocol == 'udp':
-                nc_cmd = 'nc -u -l %s -e %s' % (port, recv_command)
-            else:
-                nc_cmd = 'nc -l %s -e %s' % (port, recv_command)
-            self.log.debug(nc_cmd)
-            try:
-                # Set it up and send back the port that got used
-                self.sshclient.exec_command(nc_cmd, timeout=5)
-                self.log.debug('nc listen established on port %s' % port)
-                return port
-            except paramiko.SSHException as exception:
-                self.log.debug(exception)
-                self.log.warning('Could not set up netcat on remote' \
-                                ' end, aborting')
-                attempts-=1
-                continue
-            except socket.timeout as exception:
-                self.log.debug(exception)
-                self.log.warning('Timed out waiting for nc command')
-                attempts-=1
-                continue
-        # If 5 attempts, assume something screwy is going on and bail
-        raise ConnectionError('Could not establish nc listener on remote after ' \
-                              'multiple attempts')
     def _get_connection(self, port):
         '''
         Wraps _nc_listen and returns either a direct socket connection or a
@@ -328,7 +293,12 @@ class RemoteDataset(Dataset):
         self.log.debug('recv_cmd: %s' % recv_cmd)
         try:
             self.log.debug('Setting up NC listener on remote')
-            port = self._nc_listen(recv_cmd)
+            # Ephemeral ports, pretty unlikely to be used
+            port = random.randint(32768, 60999)
+            nc_listen_thread = ncListen(self.sshclient, recv_cmd, \
+                                        self.protocol, port, self.log)
+            nc_listen_thread.start()
+            self.log.debug('nc listen established on port %s' % port)
             # Quick sleep to allow nc to get ready
             time.sleep(1)
             self.log.debug('Establishing connection to remote port %i', port)
@@ -351,6 +321,10 @@ class RemoteDataset(Dataset):
         except Exception as exception:
             self.log.debug(exception)
             raise
+        if nc_listen_thread.isAlive():
+            self.log.error('NetCat process still running on remote')
+            conduit.close()
+            return
         self.log.info('Send successful')
         conduit.close()
 
@@ -566,6 +540,49 @@ class datasetProcessor(Thread):
                     continue
         self._prune()
         self.log.info('zback run completed')
+
+class ncListen(Thread):
+    '''
+    Create a separate thread for watching the listener
+    '''
+    def __init__(self, sshclient, recv_command, protocol, port, log):
+        Thread.__init__(self)
+        self.sshclient = sshclient
+        self.recv_command = recv_command
+        self.protocol = protocol
+        self.port = port
+        self.log = log
+    def run(self):
+        '''
+        Attempt to start a netcat listen process on the remote end. This is
+        useful for either a direct send or a send via ssh. TODO - look into
+        whitelisting for the direct send case or binding to localhost for the
+        ssh send case
+        '''
+        attempts = 5
+        while attempts >= 0:
+            if self.protocol == 'udp':
+                nc_cmd = 'nc -u -l %s -e %s' % (port, recv_command)
+            else:
+                nc_cmd = 'nc -l %s -e %s' % (port, recv_command)
+            self.log.debug(nc_cmd)
+            try:
+                # Set it up and send back the port that got used
+                self.sshclient.exec_command(nc_cmd)
+            except paramiko.SSHException as exception:
+                self.log.debug(exception)
+                self.log.warning('Could not set up netcat on remote' \
+                                ' end, aborting')
+                attempts -= 1
+                continue
+            except socket.timeout as exception:
+                self.log.debug(exception)
+                self.log.warning('Timed out waiting for nc command')
+                attempts -= 1
+                continue
+        # If 5 attempts, assume something screwy is going on and bail
+        raise ConnectionError('Could not establish nc listener on remote after ' \
+                              'multiple attempts')
 
 def zbx_send(dsname, key, value, log):
     '''
