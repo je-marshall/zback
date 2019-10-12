@@ -653,6 +653,7 @@ def main():
     # If verbose selected, add a stream handler
     if args.verbose:
         add_streamhandler(log)
+        log.setLevel(logging.DEBUG)
     # Get all datasets
     dsets = get_zback_sets()
     # Zabbix dump if requested
