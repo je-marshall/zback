@@ -327,7 +327,7 @@ class RemoteDataset(Dataset):
             self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
             self.log.debug('Running send from source')
-            while sendproc.poll() is None:
+            while True:
                 data = sendproc.stdout.read(4096)
                 if data:
                     conduit.send(data)
