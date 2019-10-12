@@ -595,6 +595,7 @@ def main():
     parser.add_argument('-z', '--zabbix', \
                         help='JSON formatted list for Zabbix auto-discovery', \
                         action='store_true')
+    args = parser.parse_args()
     if args.verbose:
         log = logging.getLogger('zback')
         formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s')
