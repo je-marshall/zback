@@ -434,14 +434,19 @@ class datasetProcessor(Thread):
             raise
         # Have a little nap to allow the snapshots on the remote end to be updated
         time.sleep(5)
+        # Destination hold reflects where it came from rather than its dest
+        self.destination.get_snaps()
+        if self.destination.snaplist:
+            latest_remote = self.destination.snaplist[-1]
+            self.destination.hold_snap(latest_remote, self.source.name)
+        else:
+            self.log.error('No remote snapshots present after send')
+            self.log.error('Check logs and connection to destination')
+            raise ConnectionError
         # Assuming that the send went correctly, then remove the send hold:
         self.source.release_snap(self.sending_snap, send_hold)
         # Place a successful sent hold on source and dest
         self.source.hold_snap(self.sending_snap, dest_str)
-        # Destination hold reflects where it came from rather than its dest
-        self.destination.get_snaps()
-        self.destination.hold_snap(self.destination.latest_snap, \
-                                   self.source.name)
         # Check all other holds on snaps and remove any that are no longer
         # relevant
         self.source.get_holdlist()
