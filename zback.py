@@ -254,8 +254,10 @@ class RemoteDataset(Dataset):
         while attempts >= 0:
             # Ephemeral ports, pretty unlikely to be used
             port = random.randint(32768, 60999)
-            nc_cmd = 'nc -l {0} -e "{1}"'.format(port, \
-                                                 recv_command)
+            if self.protocol == 'udp':
+                nc_cmd = 'nc -u -l %s -e %s' % port, recv_command
+            else:
+                nc_cmd = 'nc -l %s -e %s' % port, recv_command
             try:
                 # Set it up and send back the port that got used
                 self.sshclient.exec_command(nc_cmd, timeout=5)
@@ -281,28 +283,32 @@ class RemoteDataset(Dataset):
         paramiko Channel that can be written to and responds to the same calls
         to close
         '''
-        if self.protocol == 'nc':
-            try:
-                self.log.debug('attempting direct send')
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect((self.host, port))
-                self.log.debug('direct connection established')
-                return sock
-            except socket.error as exception:
-                self.log.debug(exception)
-                raise ConnectionError('Direct socket connect failed')
-        elif self.protocol == 'ssh':
-            try:
-                self.log.debug('attempting ssh send')
+        try:
+            if self.protocol == 'ssh':
+                self.log.debug('Opening SSH channel')
                 transport = self.sshclient.get_transport()
                 channel = transport.open_channel('direct-tcpip', \
                                                  dest_addr=(self.host, port), \
                                                  src_addr=('localhost', port))
-                self.log.debug('ssh channel opened')
+                self.log.debug('SSH channel opened')
                 return channel
-            except paramiko.SSHException as exception:
-                self.log.debug(exception)
-                raise ConnectionError('SSH channel connect failed')
+            if self.protocol == 'tcp':
+                self.log.debug('Opening TCP socket')
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            elif self.protocol == 'udp':
+                self.log.debug('Opening UDP socket')
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.connect((self.host, port))
+            self.log.debug('Socket opened')
+            return sock
+        except socket.error as exception:
+            self.log.error('Socket connection failed')
+            self.log.debug(exception)
+            raise ConnectionError
+        except paramiko.SSHException as exception:
+            self.log.error('SSH channel open failed')
+            self.log.debug(exception)
+            raise ConnectionError
     def get_props(self):
         '''
         Overridden so as not to accidentally actually read the remote datasets
