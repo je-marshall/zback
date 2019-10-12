@@ -315,9 +315,9 @@ class RemoteDataset(Dataset):
         flag is set, it attempts a -F recv
         '''
         if initialise:
-            recv_cmd = '/sbin/zfs recv -F %s' % self.name
+            recv_cmd = '/sbin/zfs recv -F %s 2>> /tmp/netcat.log' % self.name
         else:
-            recv_cmd = '/sbin/zfs recv %s' % self.name
+            recv_cmd = '/sbin/zfs recv %s 2>> /tmp/netcat.log' % self.name
         self.log.debug('recv_cmd: %s' % recv_cmd)
         try:
             self.log.debug('Setting up NC listener on remote')
@@ -326,7 +326,6 @@ class RemoteDataset(Dataset):
             time.sleep(1)
             self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
-            self.log.debug('Running send from source')
             while True:
                 data = sendproc.stdout.read(4096)
                 if data:
