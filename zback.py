@@ -351,6 +351,7 @@ class datasetProcessor(Thread):
         self.source = source
         self.run_tag = run_tag
         self.initialise = initialise
+        self.tags = None
         self.log = logging.getLogger('zback.{0}'.format(self.source.name))
         self.destination = None
     def _send_receive(self, job):
@@ -501,6 +502,17 @@ class datasetProcessor(Thread):
                 return
         except KeyError:
             self.log.debug('No recv tags specified')
+        # Check tags - if no tags, assume defaults, if tag not in defaults then
+        # bail
+        try:
+            tags = self.source.props['tags']
+        except KeyError:
+            self.log.debug('No tags specified, assuming defaults')
+            tags = DEFTAGS
+        if self.run_tag not in tags.keys():
+            self.log.error('Specified run tag does not match dataset tags or defaults')
+            self.log.error('Check dataset properties and try again')
+            return 1
         self.log.info('Taking snapshot...')
         self.source.take_snap(tag=self.run_tag)
         self.sending_snap = self.source.latest_snap
