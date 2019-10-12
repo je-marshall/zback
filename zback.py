@@ -403,9 +403,10 @@ class datasetProcessor(Thread):
             self.destination.get_snaps()
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
-            if self.destination.snaplist and initialise:
-                self.log.error('Will not initialise destination as it has snapshots')
-                raise BlockingIOError
+            if self.destination.snaplist:
+                if initialise:
+                    self.log.error('Will not initialise destination as it has snapshots')
+                    raise BlockingIOError
             self.log.debug('dest snaplist: %s' % self.destination.snaplist)
             if self.destination.latest_snap:
                 src_match = [snap for snap in self.source.snaplist \
@@ -594,7 +595,7 @@ def main():
     parser.add_argument('-z', '--zabbix', \
                         help='JSON formatted list for Zabbix auto-discovery', \
                         action='store_true')
-    parser.add_argument('--clear-holds', \
+    parser.add_argument('--clearholds', \
                         help='DANGEROUS: Clears all holds on a dataset', \
                         action='store')
     args = parser.parse_args()
