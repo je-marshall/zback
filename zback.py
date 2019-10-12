@@ -607,7 +607,7 @@ def add_streamhandler(logger):
     handler.setFormatter(formatter)
     return
 
-def add_filehandler(logger, path):
+def add_filehandler(logger, logfile):
     '''
     Sets up a file log for the logger, note different format
     '''
@@ -615,7 +615,7 @@ def add_filehandler(logger, path):
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.FileHandler)]:
             return
-    handler = WatchedFileHandler(path)
+    handler = WatchedFileHandler(logfile)
     handler.setFormatter(formatter)
     return
 
