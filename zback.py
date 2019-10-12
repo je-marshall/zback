@@ -258,6 +258,7 @@ class RemoteDataset(Dataset):
                 nc_cmd = 'nc -u -l %s -e %s' % (port, recv_command)
             else:
                 nc_cmd = 'nc -l %s -e %s' % (port, recv_command)
+            self.log.debug(nc_cmd)
             try:
                 # Set it up and send back the port that got used
                 self.sshclient.exec_command(nc_cmd, timeout=5)
