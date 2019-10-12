@@ -29,7 +29,7 @@ ZBX_SEND = True
 ZBX_CONF = '/etc/zabbix/zabbix-agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
-LOG_LVL = logging.WARNING
+LOG_LVL = logging.INFO
 HELP = '''
        '''
 

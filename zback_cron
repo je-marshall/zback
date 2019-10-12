@@ -1,5 +1,5 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
-0 * * * * root /usr/local/bin/zback hourly
-0 0 * * * root /usr/local/bin/zback daily
-0 0 * * 7 root /usr/local/bin/zback weekly
-0 0 1 * * root /usr/local/bin/zback monthly
+0 * * * * root /usr/local/bin/zback -t hourly
+0 0 * * * root /usr/local/bin/zback -t daily
+0 0 * * 7 root /usr/local/bin/zback -t weekly
+0 0 1 * * root /usr/local/bin/zback -t monthly
