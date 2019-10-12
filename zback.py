@@ -332,17 +332,21 @@ class RemoteDataset(Dataset):
             time.sleep(1)
             self.log.debug('Establishing connection to remote port %i', port)
             conduit = self._get_connection(port)
+        except ConnectionError:
+            raise
+        except subprocess.CalledProcessError as exception:
+            self.log.debug(exception)
+            raise
+        except Exception as exception:
+            self.log.debug(exception)
+            raise
+        try:
             while True:
                 data = sendproc.stdout.read(4096)
                 if data:
                     conduit.send(data)
                 else:
                     break
-        except ConnectionError:
-            raise
-        except subprocess.CalledProcessError as exception:
-            self.log.debug(exception)
-            raise
         except Exception as exception:
             self.log.debug(exception)
             raise
@@ -589,10 +593,43 @@ def get_zback_sets():
     return [dset.split('\t')[0] for dset in zback_sets.strip('\n').split('\n') \
             if dset.split('\t')[-1] == 'yes' and '@' not in dset]
 
+def add_streamhandler(logger):
+    '''
+    FileHandler is subclass of StreamHandler so this actually matches both
+    classes. However if we always call this first, then it doesn't matter as the
+    only type of logger added would be a stream one anyhow
+    '''
+    formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s') 
+    if logger.handlers:
+        if [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]:
+            return
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    return
+
+def add_filehandler(logger, path):
+    '''
+    Sets up a file log for the logger, note different format
+    '''
+    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s') 
+    if logger.handlers:
+        if [h for h in logger.handlers if isinstance(h, logging.FileHandler)]:
+            return
+    handler = logging.WatchedFileHandler()
+    handler.setFormatter(formatter)
+    return
+
 def main():
     '''
-        Parse args and decide what to do
+    Parse args and decide what to do
     '''
+    # Get 
+    log = logging.getLogger('zback')
+    log.setLevel(LOG_LVL)
+    filelogging = True
+    if not os.path.exists(LOGDIR):
+        log.warning('No logdir configured, console logging enabled')
+        filelogging = False
     parser = argparse.ArgumentParser(description=HELP)
     parser.add_argument('-t', \
                         '--tag', \
@@ -612,31 +649,39 @@ def main():
                         help='DANGEROUS: Clears all holds on a dataset', \
                         action='store')
     args = parser.parse_args()
+    # If verbose selected, add a stream handler
     if args.verbose:
-        log = logging.getLogger('zback')
-        formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s')
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-        log.addHandler(handler)
-        log.setLevel(logging.DEBUG)
+        add_streamhandler(log)
+    # Get all datasets
     dsets = get_zback_sets()
+    # Zabbix dump if requested
     if args.zabbix:
         print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
         sys.exit(0)
+    # Need a tag for any other interaction
+    if not args.tag:
+        print('Must specify tag')
+        sys.exit(1)
+    # If initialising, enable console logging anyway, add file logging if
+    # possible and wait until the run is finished to terminate
+    if args.initialise in dsets:
+        add_streamhandler(log)
+        if filelogging:
+            add_filehandler(log, args.initialise)
+        this_run = datasetProcessor(Dataset(args.initialise, log), \
+                                    args.tag, initialise=True)
+        this_run.start()
+        this_run.join()
+        sys.exit(0)
+    # Check for unrecognised dataset
+    elif args.initialise:
+        print('Dataset not managed by %s, check and try again' % PROP.strip(':'))
+        sys.exit(1)
+    # Otherwise, normal run, loop over all datasets
     for dataset in dsets:
-        if str(args.initialise) == dataset:
-            this_logger = logging.getLogger('zback.%s' % dataset)
-            this_run = datasetProcessor(Dataset(dataset, this_logger), \
-                                        args.tag, \
-                                        initialise=True)
-            this_run.start()
-            this_run.join()
-            sys.exit(0)
-        elif args.initialise:
-            print('Dataset to initialise not managed by %s' % PROP.strip(':'))
-            print('Check config and try again')
-            sys.exit(1)
-        this_logger = logging.getLogger('zback.%s' % dataset)
+        this_log = logging.getLogger('zback.%s' % dataset)
+        if filelogging:
+            add_filehandler(this_log, dataset)
         this_thread = datasetProcessor(Dataset(dataset, this_logger), args.tag)
         this_thread.start()
 
