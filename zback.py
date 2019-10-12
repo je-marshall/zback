@@ -437,8 +437,8 @@ class datasetProcessor(Thread):
         # Destination hold reflects where it came from rather than its dest
         self.destination.get_snaps()
         if self.destination.snaplist:
-            latest_remote = self.destination.snaplist[-1]
-            self.destination.hold_snap(latest_remote, self.source.name)
+            self.destination.latest_snap = self.destination.snaplist[-1]
+            self.destination.hold_snap(self.destination.latest_snap, self.source.name)
         else:
             self.log.error('No remote snapshots present after send')
             self.log.error('Check logs and connection to destination')
