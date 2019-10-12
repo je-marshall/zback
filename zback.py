@@ -567,12 +567,6 @@ class ncListen(Thread):
         try:
             # Set it up and send back the port that got used
             ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd)
-            # Not fussed if this blocks, we're in a new thread
-            error = ncerr.read().decode()
-            if error:
-                self.log.error('Error running netcat command')
-                self.log.debug(error)
-                raise ConnectionError
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Netcat command could not start')
