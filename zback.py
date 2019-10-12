@@ -559,30 +559,23 @@ class ncListen(Thread):
         whitelisting for the direct send case or binding to localhost for the
         ssh send case
         '''
-        attempts = 5
-        while attempts >= 0:
-            if self.protocol == 'udp':
-                nc_cmd = 'nc -u -l %s -e %s' % (self.port, self.recv_command)
-            else:
-                nc_cmd = 'nc -l %s -e %s' % (self.port, self.recv_command)
-            self.log.debug(nc_cmd)
-            try:
-                # Set it up and send back the port that got used
-                self.sshclient.exec_command(nc_cmd)
-            except paramiko.SSHException as exception:
-                self.log.debug(exception)
-                self.log.warning('Could not set up netcat on remote' \
-                                ' end, aborting')
-                attempts -= 1
-                continue
-            except socket.timeout as exception:
-                self.log.debug(exception)
-                self.log.warning('Timed out waiting for nc command')
-                attempts -= 1
-                continue
-        # If 5 attempts, assume something screwy is going on and bail
-        raise ConnectionError('Could not establish nc listener on remote after ' \
-                              'multiple attempts')
+        if self.protocol == 'udp':
+            nc_cmd = 'nc -u -l %s -e %s' % (self.port, self.recv_command)
+        else:
+            nc_cmd = 'nc -l %s -e %s' % (self.port, self.recv_command)
+        self.log.debug(nc_cmd)
+        try:
+            # Set it up and send back the port that got used
+            self.sshclient.exec_command(nc_cmd)
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
+            self.log.warning('Could not set up netcat on remote' \
+                            ' end, aborting')
+            raise
+        except socket.timeout as exception:
+            self.log.debug(exception)
+            self.log.warning('Timed out waiting for nc command')
+            raise
 
 def zbx_send(dsname, key, value, log):
     '''
