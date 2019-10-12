@@ -181,7 +181,11 @@ class RemoteDataset(Dataset):
         self._get_ssh_client()
         # Run this now to throw an instant error
         self.get_snaps()
-        self.latest_snap = self.snaplist[-1]
+        try:
+            self.latest_snap = self.snaplist[-1]
+        except IndexError:
+            # No snapshots on remote end
+            self.latest_snap = None
     def _get_ssh_client(self):
         try:
             self.sshclient = paramiko.client.SSHClient()
@@ -400,10 +404,9 @@ class datasetProcessor(Thread):
         # Now that we have a destination dataset set up, we need to check their
         # respective snaplists:
         try:
-            self.destination.get_snaps()
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
-            if self.destination.snaplist:
+            if self.destination.latest_snap is not None:
                 if initialise:
                     self.log.error('Will not initialise destination as it has snapshots')
                     raise BlockingIOError
