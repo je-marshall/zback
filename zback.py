@@ -530,8 +530,12 @@ class datasetProcessor(Thread):
             self.log.error('Specified run tag does not match dataset tags or defaults')
             self.log.error('Check dataset properties and try again')
             return 1
-        self.log.info('Taking snapshot...')
-        self.source.take_snap(tag=self.run_tag)
+        try:
+            self.log.info('Taking snapshot...')
+            self.source.take_snap(tag=self.run_tag)
+        except subprocess.CalledProcessError:
+            self.log.error('Snapshot already exists or zfs command issue')
+            return 1
         self.sending_snap = self.source.latest_snap
         try:
             send_tags = self.source.props['send'].split(',')
