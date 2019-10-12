@@ -560,13 +560,13 @@ class ncListen(Thread):
         ssh send case
         '''
         if self.protocol == 'udp':
-            nc_cmd = 'nc -u -l %s -e %s' % (self.port, self.recv_command)
+            nc_cmd = 'nc -u -l %s -e "%s"' % (self.port, self.recv_command)
         else:
-            nc_cmd = 'nc -l %s -e %s' % (self.port, self.recv_command)
+            nc_cmd = 'nc -l %s -e "%s"' % (self.port, self.recv_command)
         self.log.debug(nc_cmd)
         try:
             # Set it up and send back the port that got used
-            self.sshclient.exec_command(nc_cmd)
+            ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd)
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.warning('Could not set up netcat on remote' \
