@@ -255,9 +255,9 @@ class RemoteDataset(Dataset):
             # Ephemeral ports, pretty unlikely to be used
             port = random.randint(32768, 60999)
             if self.protocol == 'udp':
-                nc_cmd = 'nc -u -l %s -e %s' % port, recv_command
+                nc_cmd = 'nc -u -l %s -e %s' % (port, recv_command)
             else:
-                nc_cmd = 'nc -l %s -e %s' % port, recv_command
+                nc_cmd = 'nc -l %s -e %s' % (port, recv_command)
             try:
                 # Set it up and send back the port that got used
                 self.sshclient.exec_command(nc_cmd, timeout=5)
