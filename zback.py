@@ -615,7 +615,8 @@ def add_filehandler(logger, logfile):
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.FileHandler)]:
             return
-    handler = WatchedFileHandler(logfile)
+    logpath = LOG_DIR + logfile.split('/')[-1] + '.log'
+    handler = WatchedFileHandler(logpath)
     handler.setFormatter(formatter)
     return
 
