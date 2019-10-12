@@ -19,29 +19,29 @@ import paramiko
 # to change these go ahead.
 # PROP must be of the form [a-z]*: otherwise it makes it a pain to send to
 # Zabbix, feel free to ignore this stipulation if you have turned off sending.
-PROP='test:'
-TIMEFMT='%Y-%m-%d-%H%M'
-DEFTAGS={'hourly' : '48', \
+PROP = 'test:'
+TIMEFMT = '%Y-%m-%d-%H%M'
+DEFTAGS = {'hourly' : '48', \
          'daily' : '7', \
          'weekly' : '6', \
          'monthly' : '6'}
-ZBX_SEND=True
-ZBX_CONF='/etc/zabbix/zabbix-agentd.conf'
-ZBX_BIN='/bin/zabbix_sender'
-LOG_DIR='/var/log/zback/'
-LOG_LVL=logging.WARNING
-HELP='''
-     '''
+ZBX_SEND = True
+ZBX_CONF = '/etc/zabbix/zabbix-agentd.conf'
+ZBX_BIN = '/bin/zabbix_sender'
+LOG_DIR = '/var/log/zback/'
+LOG_LVL = logging.WARNING
+HELP = '''
+       '''
 
 class Dataset():
     '''
     Base Dataset class, implements local dataset handling functions. Is intended
     to be subclassed to provide remote functionality.
     '''
-    def __init__(self, name, logname=None):
+    def __init__(self, name, logger):
         self.name = name
         self.props = None
-        self.log = logging.getLogger('zback.'.format(logname))
+        self.log = logger
         self.snaplist = None
         self.holdlist = None
         self.latest_snap = None
@@ -53,8 +53,8 @@ class Dataset():
         '''
         try:
             result = subprocess.check_output(command.split(), \
-                                             stderr = subprocess.PIPE, \
-                                             universal_newlines = True)
+                                             stderr=subprocess.PIPE, \
+                                             universal_newlines=True)
             self.log.debug('successful command: %s' % command)
         except subprocess.CalledProcessError:
             self.log.debug('failed command: %s' % command)
@@ -68,7 +68,7 @@ class Dataset():
         '''
         prop_cmd = 'zfs get all -H -o property,value %s' % self.name
         all_props = self._exec_command(prop_cmd)
-        self.props = {re.sub(PROP, '', k):v for k,v in \
+        self.props = {re.sub(PROP, '', k):v for k, v in \
                       [prop.split('\t') for prop in all_props.split('\n') \
                       if PROP in prop]}
     def set_prop(self, prop, value):
@@ -172,8 +172,8 @@ class RemoteDataset(Dataset):
     Subclassed to override a couple of functions. On initialisation attempts to
     establish an SSH connection to the remote side and will raise if not
     '''
-    def __init__(self, name, host, protocol, logname):
-        super().__init__(name, logname)
+    def __init__(self, name, host, protocol, logger):
+        super().__init__(name, logger)
         self.name = name
         self.host = host
         self.protocol = protocol
@@ -190,28 +190,27 @@ class RemoteDataset(Dataset):
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'bad host key' % self.host)
+                            'bad host key', self.host)
             raise ConnectionError
         except paramiko.AuthenticationException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'authentication failure' % self.host)
+                            'authentication failure', self.host)
             raise ConnectionError
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
-                            'check logs' % self.host)
+                            'check logs', self.host)
             raise ConnectionError
         except socket.error as exception:
             self.log.debug(exception)
             self.log.error('Socket error while connecting to ' \
-                            '%s' % self.host)
+                            '%s', self.host)
             raise ConnectionError
         except IndexError as exception:
             self.log.debug(exception)
-            self.log.debug('Dest string: %s' % destination)
             self.log.error('Destination incorrectly formatted for ' \
-                            'dataset %s' % self.name)
+                            'dataset %s', self.name)
             raise ConnectionError
         except IOError as exception:
             self.log.debug(exception)
@@ -232,11 +231,11 @@ class RemoteDataset(Dataset):
             if cmd_err_fmt:
                 self.log.debug('stderr: %s' % cmd_err_fmt)
                 self.log.warning('Remote command returned stderr')
-                self.log.warning('remote command: %s' % command)
+                self.log.warning('remote command: %s', command)
         except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Remote command failed')
-            self.log.error('remote command: %s' % command)
+            self.log.error('remote command: %s', command)
             raise
         self.log.debug('successful cmd: %s', command)
         return cmd_out_fmt
@@ -309,11 +308,11 @@ class RemoteDataset(Dataset):
     def receive(self, sendproc, initialise=False):
         '''
         Takes a subprocess as input and reads from its stdout. If the initialise
-        flag is set, it attempts a -F recv 
+        flag is set, it attempts a -F recv
         '''
-        if initialise: 
+        if initialise:
             recv_cmd = '/sbin/zfs recv -F %s' % self.name
-        else: 
+        else:
             recv_cmd = '/sbin/zfs recv %s' % self.name
         self.log.debug('recv_cmd: %s' % recv_cmd)
         try:
@@ -352,7 +351,7 @@ class datasetProcessor(Thread):
         self.run_tag = run_tag
         self.initialise = initialise
         self.tags = None
-        self.log = logging.getLogger('zback.{0}'.format(self.source.name))
+        self.log = self.source.log
         self.destination = None
     def _send_receive(self, job):
         '''
@@ -388,12 +387,12 @@ class datasetProcessor(Thread):
         if 'local:' in dest_str:
             self.log.debug('Destination is local')
             dest_name = dest_str.split(':')[-1], \
-                self.destination = Dataset(dest_name, self.source.name)
+                self.destination = Dataset(dest_name, self.log)
         else:
             self.log.debug('Destination is remote')
             protocol, host, dest_name = dest_str.split(':')
             self.destination = RemoteDataset(dest_name, host, protocol, \
-                                                self.source.name)
+                                                self.log)
         self.log.debug('Destination set up, checking latest matching snap')
         # None of the following have any try: excepts because they all need to
         # operate in sequence and if any of them fail they will be handled by
@@ -418,7 +417,7 @@ class datasetProcessor(Thread):
             self.log.debug('No common snapshots')
             if not initialise:
                 raise LookupError('No snapshots in common and not initialising')
-            src_match = None    
+            src_match = None
         self.log.debug('src_match: %s', src_match)
         try:
             self.log.debug('Beginning send')
@@ -595,6 +594,9 @@ def main():
     parser.add_argument('-z', '--zabbix', \
                         help='JSON formatted list for Zabbix auto-discovery', \
                         action='store_true')
+    parser.add_argument('--clear-holds', \
+                        help='DANGEROUS: Clears all holds on a dataset', \
+                        action='store')
     args = parser.parse_args()
     if args.verbose:
         log = logging.getLogger('zback')
@@ -609,7 +611,8 @@ def main():
         sys.exit(0)
     for dataset in dsets:
         if str(args.initialise) == dataset:
-            this_run = datasetProcessor(Dataset(dataset), args.tag)
+            this_logger = logging.getLogger('zback.%s' % dataset)
+            this_run = datasetProcessor(Dataset(dataset), args.tag, this_logger)
             this_run.start()
             this_run.join()
             sys.exit(0)
@@ -617,6 +620,7 @@ def main():
             print('Dataset to initialise not managed by %s' % PROP.strip(':'))
             print('Check config and try again')
             sys.exit(1)
+        this_logger = logging.getLogger('zback.%s' % dataset)
         this_thread = datasetProcessor(Dataset(dataset), args.tag)
         this_thread.start()
 
