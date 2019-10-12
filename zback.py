@@ -683,7 +683,7 @@ def main():
         this_log = logging.getLogger('zback.%s' % dataset)
         if filelogging:
             add_filehandler(this_log, dataset)
-        this_thread = datasetProcessor(Dataset(dataset, this_logger), args.tag)
+        this_thread = datasetProcessor(Dataset(dataset, this_log), args.tag)
         this_thread.start()
 
 if __name__ == '__main__':
