@@ -401,6 +401,11 @@ class datasetProcessor(Thread):
         # respective snaplists:
         try:
             self.destination.get_snaps()
+            # At this point, check if the destination has any snapshots. If it
+            # does, refuse to initialise it.
+            if self.destination.snaplist and initialise:
+                self.log.error('Will not initialise destination as it has snapshots')
+                raise BlockingIOError
             self.log.debug('dest snaplist: %s' % self.destination.snaplist)
             if self.destination.latest_snap:
                 src_match = [snap for snap in self.source.snaplist \
@@ -566,11 +571,9 @@ def main():
     parser = argparse.ArgumentParser(description=HELP)
     parser.add_argument('-t', \
                         '--tag', \
-                        nargs=1, \
                         help='Tag for this run', \
                         action='store')
     parser.add_argument('-i', '--initialise', \
-                        nargs=1, \
                         help='Attempt to initialise this dataset', \
                         action='store')
     parser.add_argument('-v', \
@@ -580,7 +583,6 @@ def main():
     parser.add_argument('-z', '--zabbix', \
                         help='JSON formatted list for Zabbix auto-discovery', \
                         action='store_true')
-    args = parser.parse_args()
     if args.verbose:
         log = logging.getLogger('zback')
         formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s')
@@ -589,13 +591,9 @@ def main():
         log.addHandler(handler)
         log.setLevel(logging.DEBUG)
     dsets = get_zback_sets()
-    print(args)
     if args.zabbix:
         print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
         sys.exit(0)
-    if not args.tag:
-        print('Must specify tag for this run')
-        sys.exit(1)
     for dataset in dsets:
         if str(args.initialise) == dataset:
             this_run = datasetProcessor(Dataset(dataset), args.tag)
