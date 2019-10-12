@@ -612,7 +612,7 @@ def main():
     for dataset in dsets:
         if str(args.initialise) == dataset:
             this_logger = logging.getLogger('zback.%s' % dataset)
-            this_run = datasetProcessor(Dataset(dataset), args.tag, this_logger)
+            this_run = datasetProcessor(Dataset(dataset, this_logger), args.tag)
             this_run.start()
             this_run.join()
             sys.exit(0)
@@ -621,7 +621,7 @@ def main():
             print('Check config and try again')
             sys.exit(1)
         this_logger = logging.getLogger('zback.%s' % dataset)
-        this_thread = datasetProcessor(Dataset(dataset), args.tag, this_logger)
+        this_thread = datasetProcessor(Dataset(dataset, this_logger), args.tag)
         this_thread.start()
 
 if __name__ == '__main__':
