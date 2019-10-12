@@ -616,7 +616,9 @@ def main():
     for dataset in dsets:
         if str(args.initialise) == dataset:
             this_logger = logging.getLogger('zback.%s' % dataset)
-            this_run = datasetProcessor(Dataset(dataset, this_logger), args.tag)
+            this_run = datasetProcessor(Dataset(dataset, this_logger), \
+                                        args.tag, \
+                                        initialise=True)
             this_run.start()
             this_run.join()
             sys.exit(0)
