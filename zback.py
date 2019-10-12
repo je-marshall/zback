@@ -627,7 +627,7 @@ def main():
     log = logging.getLogger('zback')
     log.setLevel(LOG_LVL)
     filelogging = True
-    if not os.path.exists(LOGDIR):
+    if not os.path.exists(LOG_DIR):
         log.warning('No logdir configured, console logging enabled')
         filelogging = False
     parser = argparse.ArgumentParser(description=HELP)
