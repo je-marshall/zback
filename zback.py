@@ -562,9 +562,9 @@ class ncListen(Thread):
         attempts = 5
         while attempts >= 0:
             if self.protocol == 'udp':
-                nc_cmd = 'nc -u -l %s -e %s' % (port, recv_command)
+                nc_cmd = 'nc -u -l %s -e %s' % (self.port, self.recv_command)
             else:
-                nc_cmd = 'nc -l %s -e %s' % (port, recv_command)
+                nc_cmd = 'nc -l %s -e %s' % (self.port, self.recv_command)
             self.log.debug(nc_cmd)
             try:
                 # Set it up and send back the port that got used
