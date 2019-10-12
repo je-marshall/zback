@@ -605,6 +605,7 @@ def add_streamhandler(logger):
             return
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
+    logger.addHandler(handler)
     return
 
 def add_filehandler(logger, logfile):
@@ -618,6 +619,7 @@ def add_filehandler(logger, logfile):
     logpath = LOG_DIR + logfile.split('/')[-1] + '.log'
     handler = WatchedFileHandler(logpath)
     handler.setFormatter(formatter)
+    logger.addHandler(handler)
     return
 
 def main():
