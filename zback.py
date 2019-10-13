@@ -508,7 +508,9 @@ class datasetProcessor(Thread):
         try:
             self.log.info('Taking snapshot...')
             self.source.take_snap(tag=self.run_tag)
+            zbx_send(source.name, 'snap', '0', self.log)
         except subprocess.CalledProcessError:
+            zbx_send(source.name, 'snap', '1', self.log)
             self.log.error('Snapshot already exists or zfs command issue')
             return 1
         self.sending_snap = self.source.latest_snap
@@ -525,19 +527,30 @@ class datasetProcessor(Thread):
         if send_jobs:
             self.log.debug('send jobs: %s', send_jobs)
             self.source.get_holdlist()
+            send_fail = False
             for job in send_jobs:
                 try:
+                    zbx_send(source.name, 'sending', '1', self.log)
                     self._send_receive(job)
+                    zbx_send(source.name, 'sending', '0', self.log)
                 except BlockingIOError:
+                    send_fail = True
                     continue
                 except subprocess.CalledProcessError:
+                    send_fail = True
                     continue
                 except ConnectionError:
+                    send_fail = True
                     continue
                 except Exception as exception:
+                    send_fail = True
                     # Catch 'n log owt else
                     self.log.debug(exception)
                     continue
+            if send_fail:
+                zbx_send(source.name, 'sent', '1', self.log)
+            else:
+                zbx_send(source.name, 'sent', '0', self.log)
         self._prune()
         self.log.info('zback run completed')
 
