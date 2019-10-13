@@ -512,7 +512,7 @@ class datasetProcessor(Thread):
             self.source.take_snap(tag=self.run_tag)
             zbx_send(self.source.name, 'snap', '0', self.log)
         except subprocess.CalledProcessError:
-            zbx_send(source.name, 'snap', '1', self.log)
+            zbx_send(self.source.name, 'snap', '1', self.log)
             self.log.error('Snapshot already exists or zfs command issue')
             return 1
         self.sending_snap = self.source.latest_snap
@@ -550,9 +550,9 @@ class datasetProcessor(Thread):
                     self.log.debug(exception)
                     continue
             if send_fail:
-                zbx_send(source.name, 'sent', '1', self.log)
+                zbx_send(self.source.name, 'sent', '1', self.log)
             else:
-                zbx_send(source.name, 'sent', '0', self.log)
+                zbx_send(self.source.name, 'sent', '0', self.log)
         self._prune()
         self.log.info('zback run completed')
 
