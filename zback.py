@@ -580,7 +580,7 @@ def zbx_send(dsname, key, value, log):
     '''
     Sends updates to Zabbix. Does not check validity of global config variables.
     Can also be disabled by setting ZBX_SEND to False. In either that case or a
-    successful send it returns, if it fails it returns a ConnectionError
+    successful send it returns, if it fails it logs and returns anyway
     '''
     if not ZBX_SEND:
         return
@@ -593,7 +593,7 @@ def zbx_send(dsname, key, value, log):
         log.debug('Failed sending results to zabbix server')
         log.debug('send_cmd: '+' '.join(send_cmd))
         log.warning('Error sending to zabbix, check config')
-        raise ConnectionError
+        return
 
 def get_zback_sets():
     '''
