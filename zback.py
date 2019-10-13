@@ -599,7 +599,8 @@ def get_zback_sets():
     '''
     Returns a list of zback managed datasets
     '''
-    get_cmd = ['zfs', 'get', '-H', '-o', 'name,property,value', '%smanage' % PROP]
+    get_cmd = ['zfs', 'get', '-H', '-o', 'name,property,value', \
+               '-d', 1, '-t', 'filesystem', '%smanage' % PROP]
     try:
         zback_sets = subprocess.check_output(get_cmd, universal_newlines=True)
     except subprocess.CalledProcessError:
