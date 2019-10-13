@@ -26,7 +26,7 @@ DEFTAGS = {'hourly' : '48', \
          'weekly' : '6', \
          'monthly' : '6'}
 ZBX_SEND = True
-ZBX_CONF = '/etc/zabbix/zabbix-agentd.conf'
+ZBX_CONF = '/etc/zabbix/zabbix_agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
 LOG_LVL = logging.INFO
