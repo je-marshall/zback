@@ -510,7 +510,7 @@ class datasetProcessor(Thread):
         try:
             self.log.info('Taking snapshot...')
             self.source.take_snap(tag=self.run_tag)
-            zbx_send(source.name, 'snap', '0', self.log)
+            zbx_send(self.source.name, 'snap', '0', self.log)
         except subprocess.CalledProcessError:
             zbx_send(source.name, 'snap', '1', self.log)
             self.log.error('Snapshot already exists or zfs command issue')
