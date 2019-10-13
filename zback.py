@@ -152,6 +152,7 @@ class Dataset():
         '''
         Receive for local dataset only, should be subclassed for remote
         '''
+        self.log.info('Sending to %s...', self.name)
         if initialise: recv_cmd = 'zfs recv -F %s' % self.name
         else: recv_cmd = 'zfs recv %s' % self.name
         try:
@@ -286,6 +287,7 @@ class RemoteDataset(Dataset):
         Takes a subprocess as input and reads from its stdout. If the initialise
         flag is set, it attempts a -F recv
         '''
+        self.log.info('Sending to %s...', self.host)
         if initialise:
             recv_cmd = '/sbin/zfs recv -F %s' % self.name
         else:
