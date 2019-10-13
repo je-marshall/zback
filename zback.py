@@ -532,9 +532,9 @@ class datasetProcessor(Thread):
             send_fail = False
             for job in send_jobs:
                 try:
-                    zbx_send(source.name, 'sending', '1', self.log)
+                    zbx_send(self.source.name, 'sending', '1', self.log)
                     self._send_receive(job)
-                    zbx_send(source.name, 'sending', '0', self.log)
+                    zbx_send(self.source.name, 'sending', '0', self.log)
                 except BlockingIOError:
                     send_fail = True
                     continue
