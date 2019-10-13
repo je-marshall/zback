@@ -585,10 +585,10 @@ def zbx_send(dsname, key, value, log):
     if not ZBX_SEND:
         return
     send_cmd = [ZBX_BIN, '-c', ZBX_CONF, \
-                '-k', PROP.replace(':', '.')+key+'[%s]', dsname, \
+                '-k', PROP.replace(':', '.')+key+'[%s]' % dsname, \
                 '-o', value]
     try:
-        zabbix_send = subprocess.check_output(CMD, universal_newlines=True)
+        zabbix_send = subprocess.check_output(send_cmd, universal_newlines=True)
     except subprocess.CalledProcessError:
         log.debug('Failed sending results to zabbix server')
         log.debug('send_cmd: '+' '.join(send_cmd))
