@@ -400,7 +400,8 @@ class datasetProcessor(Thread):
             if self.destination.latest_snap:
                 src_match = [snap for snap in self.source.snaplist \
                             if snap.split('@')[-1] == \
-                            self.destination.latest_snap.split('@')[-1]].pop()
+                            self.destination.latest_snap.split('@')[-1] \
+                            and self.run_tag in snap].pop()
             else:
                 src_match = None
         except IndexError:
