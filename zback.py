@@ -71,7 +71,7 @@ class Dataset():
             holds = self.get_holds(held_snap)
             for hold in holds:
                 try:
-                    self.release_snap(held_snp, hold)
+                    self.release_snap(held_snap, hold)
                 except subprocess.CalledProcessError as exception:
                     self.log.error('Failed to clear holds on snap %s', held_snap)
                     self.log.debug(exception)
