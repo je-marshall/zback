@@ -410,12 +410,10 @@ class datasetProcessor(Thread):
         try:
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
-            if not self.destination.snaplist:
+            if self.destination.snaplist:
                 if self.initialise:
                     self.log.error('Will not initialise destination as it has snapshots')
                     raise BlockingIOError
-            self.log.debug('dest snaplist: %s' % self.destination.snaplist)
-            if self.destination.snaplist:
                 latest_remote = [snap for snap in self.destination.snaplist \
                                 if self.run_tag in snap].pop()
                 src_match = [snap for snap in self.source.snaplist \
