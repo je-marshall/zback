@@ -62,6 +62,20 @@ class Dataset():
             raise
         # TODO Figure out better subprocess.stderr handling
         return result
+    def _clear_holds(self):
+        '''
+        V Dangerous, only really for testing
+        '''
+        self.get_holdlist()
+        for held_snap in self.holdlist:
+            holds = self.get_holds(held_snap)
+            for hold in holds:
+                try:
+                    self.release_snap(held_snp, hold)
+                except subprocess.CalledProcessError as exception:
+                    self.log.error('Failed to clear holds on snap %s', held_snap)
+                    self.log.debug(exception)
+                    continue
     def get_props(self):
         '''
         Updates the internal property dictionary
