@@ -406,7 +406,7 @@ class datasetProcessor(Thread):
                 src_match = None
         except IndexError:
             self.log.debug('No common snapshots')
-            if not initialise:
+            if not self.initialise:
                 raise LookupError('No snapshots in common and not initialising')
             src_match = None
         self.log.debug('src_match: %s', src_match)
