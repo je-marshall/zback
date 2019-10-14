@@ -381,11 +381,6 @@ class datasetProcessor(Thread):
                     raise BlockingIOError('Send in progress')
         except IndexError:
             self.log.debug('No held snapshot')
-        # This IS a send job, AND no sends are currently in progress so we can
-        # go ahead and try to connect to the destination dataset, after putting
-        # a send hold on
-        self.log.debug('Placing send hold before starting send')
-        self.source.hold_snap(self.sending_snap, send_hold)
         # Figure out what type of send we're doing and instantiate the right
         # class:
         if 'local:' in dest_str:
@@ -398,6 +393,10 @@ class datasetProcessor(Thread):
             self.destination = RemoteDataset(dest_name, host, protocol, \
                                                 self.log)
         self.log.debug('Destination set up, checking latest matching snap')
+        # Now that we have established a connection the destination dataset we
+        # can put a send hold on as in theory we are able to start a send
+        self.log.debug('Placing send hold before starting send')
+        self.source.hold_snap(self.sending_snap, send_hold)
         # None of the following have any try: excepts because they all need to
         # operate in sequence and if any of them fail they will be handled by
         # the run function.
