@@ -187,7 +187,7 @@ class RemoteDataset(Dataset):
     Subclassed to override a couple of functions. On initialisation attempts to
     establish an SSH connection to the remote side and will raise if not
     '''
-    def __init__(self, name, host, protocol, run_tag, logger):
+    def __init__(self, name, host, protocol, logger):
         super().__init__(name, logger)
         self.name = name
         self.host = host
