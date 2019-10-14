@@ -42,6 +42,7 @@ class Dataset():
         self.name = name
         self.props = None
         self.log = logger
+        self.tags = None
         self.snaplist = None
         self.holdlist = None
         self.latest_snap = None
@@ -76,6 +77,17 @@ class Dataset():
                     self.log.error('Failed to clear holds on snap %s', held_snap)
                     self.log.debug(exception)
                     continue
+    def _get_tags(self):
+        '''
+        Only intended to be called when getting properties. If tags are defined
+        and make sense use em, if not stick with the defaults
+        '''
+        try:
+            self.tags = {k:v for k,v in [tag.split(':') for tag in \
+                                   self.props['tags'].split(',')]}
+        except KeyError:
+            self.log.debug('No tags specified, using defaults')
+            self.tags = DEFTAGS
     def get_props(self):
         '''
         Updates the internal property dictionary
@@ -85,6 +97,7 @@ class Dataset():
         self.props = {re.sub(PROP, '', k):v for k, v in \
                       [prop.split('\t') for prop in all_props.split('\n') \
                       if PROP in prop]}
+        self._get_tags()
     def set_prop(self, prop, value):
         '''
         Set a property
@@ -467,12 +480,7 @@ class datasetProcessor(Thread):
         and then does the necessary tidying up
         '''
         self.log.info('Beginning prune')
-        try:
-            tags = self.source.props['tags']
-        except KeyError:
-            self.log.debug('No tags specified, using defaults')
-            tags = DEFTAGS
-        if self.run_tag not in tags.keys():
+        if self.run_tag not in self.source.tags.keys():
             raise ValueError('Run tag does not match dataset tags or defaults')
         self.source.get_snaps()
         try:
@@ -482,7 +490,7 @@ class datasetProcessor(Thread):
             self.log.debug('No snapshots to prune')
             return
         del_list = []
-        while len(relevant_snaps) > int(tags[self.run_tag]):
+        while len(relevant_snaps) > int(self.source.tags[self.run_tag]):
             # Reverse pop because we want oldest snap
             del_list.append(relevant_snaps.pop(0))
         for snap in del_list:
@@ -506,14 +514,8 @@ class datasetProcessor(Thread):
                 return
         except KeyError:
             self.log.debug('No recv tags specified')
-        # Check tags - if no tags, assume defaults, if tag not in defaults then
-        # bail
-        try:
-            tags = self.source.props['tags']
-        except KeyError:
-            self.log.debug('No tags specified, assuming defaults')
-            tags = DEFTAGS
-        if self.run_tag not in tags.keys():
+        # If this run is not a specified tag then bail
+        if self.run_tag not in self.source.tags.keys():
             self.log.error('Specified run tag does not match dataset tags or defaults')
             self.log.error('Check dataset properties and try again')
             return 1
