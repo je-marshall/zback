@@ -410,7 +410,7 @@ class datasetProcessor(Thread):
         try:
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
-            if self.destination.snaplist is not None:
+            if not self.destination.snaplist:
                 if self.initialise:
                     self.log.error('Will not initialise destination as it has snapshots')
                     raise BlockingIOError
