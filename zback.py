@@ -187,7 +187,7 @@ class RemoteDataset(Dataset):
     Subclassed to override a couple of functions. On initialisation attempts to
     establish an SSH connection to the remote side and will raise if not
     '''
-    def __init__(self, name, host, protocol, logger):
+    def __init__(self, name, host, protocol, run_tag, logger):
         super().__init__(name, logger)
         self.name = name
         self.host = host
@@ -196,11 +196,6 @@ class RemoteDataset(Dataset):
         self._get_ssh_client()
         # Run this now to throw an instant error
         self.get_snaps()
-        try:
-            self.latest_snap = self.snaplist[-1]
-        except IndexError:
-            # No snapshots on remote end
-            self.latest_snap = None
     def _get_ssh_client(self):
         try:
             self.sshclient = paramiko.client.SSHClient()
@@ -397,23 +392,21 @@ class datasetProcessor(Thread):
         # can put a send hold on as in theory we are able to start a send
         self.log.debug('Placing send hold before starting send')
         self.source.hold_snap(self.sending_snap, send_hold)
-        # None of the following have any try: excepts because they all need to
-        # operate in sequence and if any of them fail they will be handled by
-        # the run function.
         # Now that we have a destination dataset set up, we need to check their
         # respective snaplists:
         try:
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
-            if self.destination.latest_snap is not None:
+            if self.destination.snaplist is not None:
                 if self.initialise:
                     self.log.error('Will not initialise destination as it has snapshots')
                     raise BlockingIOError
             self.log.debug('dest snaplist: %s' % self.destination.snaplist)
-            if self.destination.latest_snap:
+            if self.destination.snaplist:
+                latest_remote = [snap for snap in self.destination.snaplist \
+                                if self.run_tag in snap].pop()
                 src_match = [snap for snap in self.source.snaplist \
-                            if snap.split('@')[-1] == \
-                            self.destination.latest_snap.split('@')[-1] \
+                            if snap.split('@')[-1] == latest_remote.split('@')[-1] \
                             and self.run_tag in snap].pop()
             else:
                 src_match = None
@@ -435,11 +428,14 @@ class datasetProcessor(Thread):
             raise
         # Have a little nap to allow the snapshots on the remote end to be updated
         time.sleep(5)
-        # Destination hold reflects where it came from rather than its dest
+        # Destination hold reflects where it came from rather than its dest.
+        # Also latest remote is subject to the run we're doing - we don't manage
+        # the other end's snapshots we just be sendin
         self.destination.get_snaps()
         if self.destination.snaplist:
-            self.destination.latest_snap = self.destination.snaplist[-1]
-            self.destination.hold_snap(self.destination.latest_snap, self.source.name)
+            latest_remote = [snap for snap in self.destination.snaplist \
+                            if self.run_tag in snap].pop()
+            self.destination.hold_snap(latest_remote, self.source.name)
         else:
             self.log.error('No remote snapshots present after send')
             self.log.error('Check logs and connection to destination')
