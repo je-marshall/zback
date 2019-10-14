@@ -110,10 +110,8 @@ class Dataset():
         '''
         holdlist_cmd = 'zfs get userrefs -H -r %s' % self.name
         holdlist = self._exec_command(holdlist_cmd)
-        holdlist = [snap.split('\t')[0] for snap in holdlist.split('\n') \
+        self.holdlist = [snap.split('\t')[0] for snap in holdlist.split('\n') \
                    if '@' in snap and int(snap.split('\t')[-2])]
-        if holdlist:
-            self.holdlist = holdlist
     def get_holds(self, snap):
         '''
         Returns a formatted list of holds placed on a snapshot
@@ -128,10 +126,8 @@ class Dataset():
         '''
         snap_cmd = 'zfs list -H -t snap -s creation -o name -r %s' % self.name
         all_snaps = self._exec_command(snap_cmd)
-        snaplist = [snap for snap in all_snaps.rstrip('\n').split('\n') \
+        self.snaplist = [snap for snap in all_snaps.rstrip('\n').split('\n') \
                    if PROP in snap]
-        if snaplist:
-            self.snaplist = snaplist
     def take_snap(self, tag):
         '''
         Takes a snapshot
@@ -621,9 +617,9 @@ def zbx_send(dsname, key, value, log):
     try:
         zabbix_send = subprocess.check_output(send_cmd, universal_newlines=True)
     except subprocess.CalledProcessError:
-        log.debug('Failed sending results to zabbix server')
-        log.debug('send_cmd: '+' '.join(send_cmd))
-        log.warning('Error sending to zabbix, check config')
+    #    log.debug('Failed sending results to zabbix server')
+    #    log.debug('send_cmd: '+' '.join(send_cmd))
+    #    log.warning('Error sending to zabbix, check config')
         return
 
 def get_zback_sets():
