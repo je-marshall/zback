@@ -611,9 +611,8 @@ def zbx_send(dsname, key, value, log):
     try:
         zabbix_send = subprocess.check_output(send_cmd, universal_newlines=True)
     except subprocess.CalledProcessError:
-    #    log.debug('Failed sending results to zabbix server')
-    #    log.debug('send_cmd: '+' '.join(send_cmd))
-    #    log.warning('Error sending to zabbix, check config')
+        log.debug('send_cmd: '+' '.join(send_cmd))
+        log.warning('Error sending to zabbix, check config')
         return
 
 def get_zback_sets():
