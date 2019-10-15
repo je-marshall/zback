@@ -539,6 +539,7 @@ class datasetProcessor(Thread):
             self.log.debug('send jobs: %s', send_jobs)
             self.source.get_holdlist()
             send_fail = False
+            zbx_send(self.source.name, 'sending', '0', self.log)
             for job in send_jobs:
                 try:
                     zbx_send(self.source.name, 'sending', '1', self.log)
