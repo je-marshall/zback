@@ -284,12 +284,9 @@ class RemoteDataset(Dataset):
             if self.protocol == 'tcp':
                 self.log.debug('Opening TCP socket')
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            elif self.protocol == 'udp':
-                self.log.debug('Opening UDP socket')
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.connect((self.host, port))
-            self.log.debug('Socket opened')
-            return sock
+                sock.connect((self.host, port))
+                self.log.debug('Socket opened')
+                return sock
         except socket.error as exception:
             self.log.error('Socket connection failed')
             self.log.debug(exception)
@@ -413,6 +410,7 @@ class datasetProcessor(Thread):
             if self.destination.snaplist:
                 if self.initialise:
                     self.log.error('Will not initialise destination as it has snapshots')
+                    self.source.release_snap(self.sending_snap, send_hold)
                     raise BlockingIOError
                 latest_remote = [snap for snap in self.destination.snaplist \
                                 if self.run_tag in snap].pop()
@@ -424,6 +422,7 @@ class datasetProcessor(Thread):
         except IndexError:
             self.log.debug('No common snapshots')
             if not self.initialise:
+                self.source.release_snap(self.sending_snap, send_hold)
                 raise LookupError('No snapshots in common and not initialising')
             src_match = None
         self.log.debug('src_match: %s', src_match)
@@ -584,10 +583,7 @@ class ncListen(Thread):
         whitelisting for the direct send case or binding to localhost for the
         ssh send case
         '''
-        if self.protocol == 'udp':
-            nc_cmd = 'nc -u -l %s -e "%s"' % (self.port, self.recv_command)
-        else:
-            nc_cmd = 'nc -l %s -e "%s"' % (self.port, self.recv_command)
+        nc_cmd = 'nc -l %s -e "%s"' % (self.port, self.recv_command)
         self.log.debug(nc_cmd)
         try:
             # Set it up and send back the port that got used
@@ -700,7 +696,7 @@ def main():
     dsets = get_zback_sets()
     # Zabbix dump if requested
     if args.zabbix:
-        print(json.dumps({'data': [{'#DATASET': dset} for dset in dsets]}))
+        print(json.dumps({'data': [{'#ZBACKDSET': dset} for dset in dsets]}))
         sys.exit(0)
     # Need a tag for any other interaction
     if not args.tag:
