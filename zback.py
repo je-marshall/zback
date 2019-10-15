@@ -696,7 +696,7 @@ def main():
     dsets = get_zback_sets()
     # Zabbix dump if requested
     if args.zabbix:
-        print(json.dumps({'data': [{'#ZBACKDSET': dset} for dset in dsets]}))
+        print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in dsets]}))
         sys.exit(0)
     # Need a tag for any other interaction
     if not args.tag:
