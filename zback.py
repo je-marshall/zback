@@ -580,11 +580,13 @@ class ncListen(Thread):
     def run(self):
         '''
         Attempt to start a netcat listen process on the remote end. This is
-        useful for either a direct send or a send via ssh. TODO - look into
-        whitelisting for the direct send case or binding to localhost for the
-        ssh send case
+        useful for either a direct send or a send via SSH. If sending via SSH
+        establish a listener only on localhost
         '''
-        nc_cmd = 'nc -l %s -e "%s"' % (self.port, self.recv_command)
+        if self.protocol == 'ssh':
+            nc_cmd = 'nc localhost -l %i -e "%s"' % (self.port, self.recv_command)
+        else:
+            nc_cmd = 'nc -l %s -e "%s"' % (self.port, self.recv_command)
         self.log.debug(nc_cmd)
         try:
             # Set it up and send back the port that got used
