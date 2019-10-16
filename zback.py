@@ -302,7 +302,7 @@ class RemoteDataset(Dataset):
                 self.log.debug('Opening SSH channel')
                 transport = self.sshclient.get_transport()
                 channel = transport.open_channel('direct-tcpip', \
-                                                 dest_addr=(self.host, port), \
+                                                 dest_addr=('localhost', port), \
                                                  src_addr=('localhost', port))
                 self.log.debug('SSH channel opened')
                 return channel
