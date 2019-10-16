@@ -5,8 +5,8 @@ ZnapZend, zfs-auto-snapshot and zrep.
 
 zback is designed to be run as a cron job. Each run is called with a tag, which
 dictates snapshot names and whether sending is attempted, along with how many
-local snapshots are kept. This is to allow for flexibility in sending schedules
-- for example, the defaults assume that hourly, daily, weekly and monthly
+local snapshots are kept. This is to allow for flexibility in sending schedules.
+For example, the defaults assume that hourly, daily, weekly and monthly
 snapshots will be being taken, and that some of these will be being sent.
 However it is trivial to define your own tags, an example being frequent, run
 every 10 minutes - the details are up to you.
