@@ -495,6 +495,10 @@ class DatasetProcessor(Thread):
                     self.destination.release_snap(snap, self.source.name)
                 except subprocess.CalledProcessError:
                     continue
+        # If this was an init run, set dest props
+        if self.initialise:
+            self.destination.set_prop('manage', 'yes')
+            self.destination.set_prop('recv', self.run_tag)
     def _prune(self):
         '''
         Using this run_tag, figures out how many snapshots need to be deleted
