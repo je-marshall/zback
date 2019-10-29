@@ -6,7 +6,6 @@ import subprocess
 import argparse
 import logging
 import random
-import signal
 import socket
 import json
 import time
@@ -226,7 +225,7 @@ class RemoteDataset(Dataset):
             self.log.error('Could not connect to host %s, ' \
                             'authentication failure', self.host)
             raise ConnectionError
-        except paramiko.ssh_excption.SSHException as exception:
+        except paramiko.ssh_exception.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'check logs', self.host)
@@ -322,12 +321,6 @@ class RemoteDataset(Dataset):
             self.log.error('SSH channel open failed')
             self.log.debug(exception)
             raise ConnectionError
-    def get_props(self):
-        '''
-        Overridden so as not to accidentally actually read the remote datasets
-        properties as we don't care for them?
-        '''
-        pass
     def receive(self, sendproc, initialise=False):
         '''
         Takes a subprocess as input and reads from its stdout. If the initialise
