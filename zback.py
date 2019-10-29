@@ -283,7 +283,7 @@ class RemoteDataset(Dataset):
         self.log.debug(nc_cmd)
         try:
             # Set it up and send back the port that got used
-            ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd)
+            ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd, timeout=5)
             return (port, ncerr)
         except paramiko.SSHException as exception:
             self.log.debug(exception)
