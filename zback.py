@@ -180,8 +180,10 @@ class Dataset():
         Receive for local dataset only, should be subclassed for remote
         '''
         self.log.info('Sending to %s...', self.name)
-        if initialise: recv_cmd = 'zfs recv -F %s' % self.name
-        else: recv_cmd = 'zfs recv %s' % self.name
+        if initialise:
+            recv_cmd = 'zfs recv -F %s' % self.name
+        else:
+            recv_cmd = 'zfs recv %s' % self.name
         try:
             recvproc = subprocess.Popen(recv_cmd.split(), \
                                         stdin=sendproc.stdout)
@@ -214,17 +216,17 @@ class RemoteDataset(Dataset):
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(self.host)
-        except paramiko.BadHostKeyException as exception:
+        except paramiko.ssh_exception.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'bad host key', self.host)
             raise ConnectionError
-        except paramiko.AuthenticationException as exception:
+        except paramiko.ssh_exception.AuthenticationException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'authentication failure', self.host)
             raise ConnectionError
-        except paramiko.SSHException as exception:
+        except paramiko.ssh_excption.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'check logs', self.host)
@@ -246,13 +248,13 @@ class RemoteDataset(Dataset):
         except Exception as exception:
             self.log.debug(exception)
             raise
-    def _exec_command(self, command, timeout=None):
+    def _exec_command(self, command):
         '''
         Runs a remote command and outputs in the same way as the super class
         does, returns the stdout if possible and raises if not
         '''
         try:
-            cmd_in, cmd_out, cmd_err = self.sshclient.exec_command(command, timeout=timeout)
+            cmd_in, cmd_out, cmd_err = self.sshclient.exec_command(command)
             cmd_out_fmt = cmd_out.read().decode()
             cmd_err_fmt = cmd_err.read().decode()
             if cmd_err_fmt:
@@ -339,7 +341,7 @@ class RemoteDataset(Dataset):
         self.log.debug('recv_cmd: %s' % recv_cmd)
         try:
             self.log.debug('Setting up NC listener on remote')
-            port, nc_err = self._nc_listen(recv_cmd) 
+            port, nc_err = self._nc_listen(recv_cmd)
             self.log.debug('nc listen established on port %s' % port)
             # Quick sleep to allow nc to get ready
             time.sleep(1)
@@ -370,7 +372,7 @@ class RemoteDataset(Dataset):
         self.log.info('Send successful')
         conduit.close()
 
-class datasetProcessor(Thread):
+class DatasetProcessor(Thread):
     '''
     Accepts a local dataset and does a run on it. This consists of taking a
     snapshot if appropriate, sending if appropriate and pruning if appropriate
@@ -383,6 +385,7 @@ class datasetProcessor(Thread):
         self.tags = None
         self.log = self.source.log
         self.destination = None
+        self.sending_snap = None
     def _send_receive(self, job):
         '''
         '''
@@ -490,7 +493,7 @@ class datasetProcessor(Thread):
             if snap != self.destination.latest_snap:
                 try:
                     self.destination.release_snap(snap, self.source.name)
-                except:
+                except subprocess.CalledProcessError:
                     continue
     def _prune(self):
         '''
@@ -519,7 +522,7 @@ class datasetProcessor(Thread):
         self.log.info('Pruning complete')
     def run(self):
         '''
-        Performs a run on a dataset. 
+        Performs a run on a dataset.
         '''
         self.log.info('Beginning run with tag %s', self.run_tag)
         # NOTE possibly worth removing or clarifying when to setup logging
@@ -614,7 +617,7 @@ def get_zback_sets():
     try:
         zback_sets = subprocess.check_output(get_cmd, universal_newlines=True)
     except subprocess.CalledProcessError:
-        raise
+        return None
     return [dset.split('\t')[0] for dset in zback_sets.strip('\n').split('\n') \
             if dset.split('\t')[-1] == 'yes' and '@' not in dset]
 
@@ -624,7 +627,7 @@ def add_streamhandler(logger):
     classes. However if we always call this first, then it doesn't matter as the
     only type of logger added would be a stream one anyhow
     '''
-    formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s') 
+    formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s')
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]:
             return
@@ -637,7 +640,7 @@ def add_filehandler(logger, logfile):
     '''
     Sets up a file log for the logger, note different format
     '''
-    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s') 
+    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s')
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.FileHandler)]:
             return
@@ -651,7 +654,6 @@ def main():
     '''
     Parse args and decide what to do
     '''
-    # Get 
     log = logging.getLogger('zback')
     log.setLevel(LOG_LVL)
     filelogging = True
@@ -683,6 +685,9 @@ def main():
         log.setLevel(logging.DEBUG)
     # Get all datasets
     dsets = get_zback_sets()
+    if dsets is None:
+        log.info('No datasets configured, exiting.')
+        sys.exit(0)
     # Zabbix dump if requested
     if args.zabbix:
         print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in dsets]}))
@@ -697,7 +702,7 @@ def main():
         add_streamhandler(log)
         if filelogging:
             add_filehandler(log, args.initialise)
-        this_run = datasetProcessor(Dataset(args.initialise, log), \
+        this_run = DatasetProcessor(Dataset(args.initialise, log), \
                                     args.tag, initialise=True)
         this_run.start()
         this_run.join()
@@ -711,7 +716,7 @@ def main():
         this_log = logging.getLogger('zback.%s' % dataset)
         if filelogging:
             add_filehandler(this_log, dataset)
-        this_thread = datasetProcessor(Dataset(dataset, this_log), args.tag)
+        this_thread = DatasetProcessor(Dataset(dataset, this_log), args.tag)
         this_thread.start()
 
 if __name__ == '__main__':
