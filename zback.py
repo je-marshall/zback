@@ -215,17 +215,17 @@ class RemoteDataset(Dataset):
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(self.host)
-        except paramiko.ssh_exception.BadHostKeyException as exception:
+        except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'bad host key', self.host)
             raise ConnectionError
-        except paramiko.ssh_exception.AuthenticationException as exception:
+        except paramiko.AuthenticationException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'authentication failure', self.host)
             raise ConnectionError
-        except paramiko.ssh_exception.SSHException as exception:
+        except paramiko.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
                             'check logs', self.host)
