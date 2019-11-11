@@ -1,0 +1,8 @@
+/var/log/zback/*.log {
+        weekly
+        rotate 12
+        compress
+        delaycompress
+        missingok
+        notifempty
+}
