@@ -161,10 +161,10 @@ class Dataset():
         '''
         self.get_snaps()
         if increm:
-            send_cmd = ('zfs send -c -i %s %s' % (increm, \
+            send_cmd = ('zfs send -cw -i %s %s' % (increm, \
                         self.latest_snap)).split()
         else:
-            send_cmd = ('zfs send -c %s' % self.latest_snap).split()
+            send_cmd = ('zfs send -cw %s' % self.latest_snap).split()
         try:
             sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
             self.log.debug('successful cmd: %s' % send_cmd)
