@@ -387,7 +387,7 @@ class DatasetProcessor(Thread):
             return
         # Now that we've checked the tag for sending, strip it from the string
         # to leave only protocol and destination
-        dest_str = re.sub(':%s' % self.run_tag, '', job)
+        dest_str = re.sub('%s:' % self.run_tag, '', job)
         self.log.debug('dest_str: %s', dest_str)
         send_hold = '%s:SEND' % dest_str
         self.log.debug('send_hold: %s', send_hold)
