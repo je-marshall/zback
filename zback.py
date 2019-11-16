@@ -405,7 +405,7 @@ class DatasetProcessor(Thread):
             self.log.debug('No held snapshot')
         # Figure out what type of send we're doing and instantiate the right
         # class:
-        if 'local:' in dest_str:
+        if 'local:' in dest_str.split(':')[0]:
             self.log.debug('Destination is local')
             dest_name = dest_str.split(':')[-1], \
                 self.destination = Dataset(dest_name, self.log)
