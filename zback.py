@@ -275,10 +275,19 @@ class RemoteDataset(Dataset):
         '''
         # Ephemeral ports, pretty unlikely to be used
         port = random.randint(32768, 60999)
+        # Get IP address from the point of view of the remote server, so as to
+        # whitelist it for netcat
+        try:
+            ipin, ipout, iperr = self.sshclient.exec_command('echo $SSH_CLIENT')
+            ip = ipout.read().decode().split()[0]
+        except paramiko.SSHException as exception:
+            self.log.debug(exception)
+            self.log.error('Could not obtain IP address, netcat cannot start')
+            raise ConnectionError
         if self.protocol == 'ssh':
             nc_cmd = 'nc localhost -l %i -e "%s"' % (port, recv_cmd)
         else:
-            nc_cmd = 'nc -l %s -e "%s"' % (port, recv_cmd)
+            nc_cmd = 'nc -l %s -e "%s" --allow %s' % (port, recv_cmd, ip)
         self.log.debug(nc_cmd)
         try:
             # Set it up and send back the port that got used
