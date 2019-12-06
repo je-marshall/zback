@@ -344,7 +344,7 @@ class RemoteDataset(Dataset):
         try:
             self.log.debug('Setting up NC listener on remote')
             port, nc_err = self._nc_listen(recv_cmd)
-            self.log.debug('nc listen established on port %s' % port)
+            self.log.debug('nc listen established on port %s', port)
             # Quick sleep to allow nc to get ready
             time.sleep(1)
             self.log.debug('Establishing connection to remote port %i', port)
@@ -364,9 +364,9 @@ class RemoteDataset(Dataset):
                     conduit.send(data)
                 else:
                     break
-            error = nc_err.read()
-            if error:
-                self.log.error('Netcat error: %s', error)
+            nc_error = nc_err.read()
+            if nc_error:
+                self.log.error('Netcat error: %s', nc_error)
                 raise ConnectionError
         except Exception as exception:
             self.log.debug(exception)
