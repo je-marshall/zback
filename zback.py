@@ -101,7 +101,7 @@ class Dataset():
         '''
         Set a property
         '''
-        set_cmd = 'zfs set %s=%s %s' % PROP+prop, value, self.name
+        set_cmd = 'zfs set %s=%s %s' % (PROP+prop, value, self.name)
         self._exec_command(set_cmd)
     def get_holdlist(self):
         '''
