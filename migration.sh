@@ -12,7 +12,7 @@ SNAPLIST=$(zfs list -t snapshot -o name -r $DATASET)
 ZA_SNAPS=()
 ZR_SNAPS=()
 
-rename_snap () {
+function rename_snap() {
     # Function to rename snapshots - quite complicated actually
     # Only applies to ZA snaps
     local SNAP=$1
