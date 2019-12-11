@@ -26,7 +26,7 @@ rename_snap () {
                echo ${SNAPARR[1]/$STAMP/} | tr -d '\n';\
                echo ":" | tr -d '\n';\
                echo ${STAMP/-/})"
-    return $NEWSNAP    
+    echo $NEWSNAP
 }
 
 # Separate out the snapshots - eventually will need to rename the ZA snaps and
