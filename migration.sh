@@ -12,7 +12,8 @@ SNAPLIST=$(zfs list -t snapshot -o name -r $DATASET)
 ZA_SNAPS=()
 ZR_SNAPS=()
 
-function rename_snap() {
+rename_snap() 
+{
     # Function to rename snapshots - quite complicated actually
     # Only applies to ZA snaps
     local SNAP=$1
@@ -35,9 +36,11 @@ for SNAP in $SNAPLIST
 do
     if [[ $SNAP == *"$ZA_PREFIX"* ]]
     then
+        echo "Adding $SNAP to rename list"
         ZA_SNAPS+=($SNAP)
     elif [[ $SNAP == *"$ZR_PREFIX"* ]]
     then
+        echo "Adding $SNAP to delete list"
         ZR_SNAPS+=($SNAP)
     fi
 done
