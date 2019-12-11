@@ -8,9 +8,19 @@ ZA_PREFIX="zfs-auto-snap_"
 ZR_PREFIX="zrep_"
 ZB_PREFIX="zback:"
 
-SNAPLIST=$(zfs list -t snapshot -o name -r $DATASET)
-ZA_SNAPS=()
-ZR_SNAPS=()
+RM_PROPS=("com.sun:auto-snapshot" \
+          "com.sun:auto-snapshot:hourly" \
+          "com.sun:auto-snapshot:daily" \
+          "com.sun:auto-snapshot:weekly" \
+          "com.sun:auto-snapshot:monthly" \
+          "zrep:lock-time" \
+          "zrep:lock-pid" \
+          "zrep:src-fs" \
+          "zrep:dest-fs" \
+          "zrep:src-host" \
+          "zrep:dest-host" \
+          "zrep:savecount" \
+          "zrep:master")
 
 rename_snap() 
 {
@@ -30,23 +40,48 @@ rename_snap()
     echo $NEWSNAP
 }
 
-# Separate out the snapshots - eventually will need to rename the ZA snaps and
-# remove the ZR ones
-for SNAP in $SNAPLIST
-do
-    if [[ $SNAP == *"$ZA_PREFIX"* ]]
-    then
-        echo "Adding $SNAP to rename list"
-        ZA_SNAPS+=($SNAP)
-    elif [[ $SNAP == *"$ZR_PREFIX"* ]]
-    then
-        echo "Adding $SNAP to delete list"
-        ZR_SNAPS+=($SNAP)
-    fi
-done
+sort_snapshots()
+{
+    # Separate out the snapshots - eventually will need to rename the ZA snaps and
+    # remove the ZR ones
+    SNAPLIST=$(zfs list -t snapshot -o name -r $DATASET)
+    ZA_SNAPS=()
+    ZR_SNAPS=()
+    for SNAP in $SNAPLIST
+    do
+        if [[ $SNAP == *"$ZA_PREFIX"* ]]
+        then
+            echo "Adding $SNAP to rename list"
+            ZA_SNAPS+=($SNAP)
+        elif [[ $SNAP == *"$ZR_PREFIX"* ]]
+        then
+            echo "Adding $SNAP to delete list"
+            ZR_SNAPS+=($SNAP)
+        fi
+    done
+    
+    for ZA_SNAP in "${ZA_SNAPS[@]}"
+    do
+        RN_SNAP=$(rename_snap $ZA_SNAP)
+        echo "Renaming $ZA_SNAP to $RN_SNAP"
+        echo "zfs rename $ZA_SNAP $RN_SNAP"
+    done
+    
+    for ZR_SNAP in "${ZR_SNAPS[@]}"
+    do
+        echo "Removing zrep snapshot $ZR_SNAP"
+        echo "zfs destroy $ZR_SNAP"
+    done
+}
 
-for ZA_SNAP in "${ZA_SNAPS}"
-do
-    RN_SNAP=$(rename_snap $ZA_SNAP)
-    echo "Renaming $ZA_SNAP to $RN_SNAP"
-done
+sort_props()
+{
+    for PROP in "${PROPS[@]}"
+    do
+        echo "zfs inherit $PROP $DATASET"
+        echo "zfs set zback:manage=yes $DATASET"
+    done
+}
+
+sort_props
+sort_snapshots
