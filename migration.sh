@@ -64,13 +64,13 @@ sort_snapshots()
     do
         RN_SNAP=$(rename_snap $ZA_SNAP)
         echo "Renaming $ZA_SNAP to $RN_SNAP"
-        echo "zfs rename $ZA_SNAP $RN_SNAP"
+        zfs rename $ZA_SNAP $RN_SNAP
     done
     
     for ZR_SNAP in "${ZR_SNAPS[@]}"
     do
         echo "Removing zrep snapshot $ZR_SNAP"
-        echo "zfs destroy $ZR_SNAP"
+        zfs destroy $ZR_SNAP
     done
 }
 
@@ -78,9 +78,9 @@ sort_props()
 {
     for PROP in "${RM_PROPS[@]}"
     do
-        echo "zfs inherit $PROP $DATASET"
+        zfs inherit $PROP $DATASET
     done
-    echo "zfs set zback:manage=yes $DATASET"
+    zfs set zback:manage=yes $DATASET
 }
 
 sort_props
