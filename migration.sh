@@ -79,8 +79,8 @@ sort_props()
     for PROP in "${RM_PROPS[@]}"
     do
         echo "zfs inherit $PROP $DATASET"
-        echo "zfs set zback:manage=yes $DATASET"
     done
+    echo "zfs set zback:manage=yes $DATASET"
 }
 
 sort_props
