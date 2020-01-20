@@ -574,22 +574,17 @@ class DatasetProcessor(Thread):
                     zbx_send(self.source.name, 'sending', '1', self.log)
                     self._send_receive(job)
                     zbx_send(self.source.name, 'sending', '0', self.log)
-                except BlockingIOError:
+                except (BlockingIOError,
+                        ConnectionError,
+                        LookupError,
+                        subprocess.CalledProcessError) as exception:
                     send_fail = True
-                    continue
-                except subprocess.CalledProcessError:
-                    send_fail = True
-                    continue
-                except ConnectionError:
-                    send_fail = True
+                    self.log.error(exception)
                     continue
                 except Exception as exception:
                     send_fail = True
                     # Catch 'n log owt else
-                    self.log.debug(exception)
-                    continue
-                except LookupError as exception:
-                    send_fail = True
+                    self.log.error("Unexpected error during send job")
                     self.log.error(exception)
                     continue
             if send_fail:
