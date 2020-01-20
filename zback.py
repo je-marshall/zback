@@ -543,8 +543,7 @@ class DatasetProcessor(Thread):
             self.log.debug('No recv tags specified')
         # If this run is not a specified tag then bail
         if self.run_tag not in self.source.tags.keys():
-            self.log.error('Specified run tag does not match dataset tags or defaults')
-            self.log.error('Check dataset properties and try again')
+            self.log.info('Specified run tag does not match dataset tags or defaults')
             return 1
         try:
             self.log.info('Taking snapshot...')
