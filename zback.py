@@ -673,6 +673,9 @@ def main():
     parser.add_argument('-i', '--initialise', \
                         help='Attempt to initialise this dataset', \
                         action='store')
+    parser.add_argument('-d', '--dataset', \
+                        help='Perform a run only on this dataset', \
+                        action='store')
     parser.add_argument('-v', \
                         '--verbose', \
                         help='Prints debug output to console', \
@@ -701,6 +704,16 @@ def main():
     if not args.tag:
         print('Must specify tag')
         sys.exit(1)
+    # If running on just the one dataset, do that first
+    if args.dataset in dsets:
+        add_streamhandler(log)
+        if filelogging:
+            add_filehandler(log, args.dataset)
+        this_run = DatasetProcessor(Dataset(args.dataset, log), \
+                                    args.tag, initialise=False)
+        this_run.start()
+        this_run.join()
+        sys.exit(0)
     # If initialising, enable console logging anyway, add file logging if
     # possible and wait until the run is finished to terminate
     if args.initialise in dsets:
