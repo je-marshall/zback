@@ -588,6 +588,10 @@ class DatasetProcessor(Thread):
                     # Catch 'n log owt else
                     self.log.debug(exception)
                     continue
+                except LookupError as exception:
+                    send_fail = True
+                    self.log.error(exception)
+                    continue
             if send_fail:
                 zbx_send(self.source.name, 'sent', '1', self.log)
             else:
