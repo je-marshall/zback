@@ -44,7 +44,7 @@ sort_snapshots()
 {
     # Separate out the snapshots - eventually will need to rename the ZA snaps and
     # remove the ZR ones
-    SNAPLIST=$(zfs list -t snapshot -o name -r $DATASET)
+    SNAPLIST=$(zfs list -t snapshot -o name -s creation -r $DATASET)
     ZA_SNAPS=()
     ZR_SNAPS=()
     for SNAP in $SNAPLIST
@@ -60,17 +60,25 @@ sort_snapshots()
         fi
     done
     
+    # This assumes that the first zrep snapshot is not an unsent one and thus is
+    # good to go
+    MIGRATION=${ZR_SNAPS[0]}
+    PREFIX=$(echo $MIGRATION | sed 's/\@.*//')
+    echo "Renaming migration snapshot $MIGRATION"
+    zfs rename $MIGRATION $PREFIX"@MIGRATION"
+    ZR_SNAPS=${ZR_SNAPS/$MIGRATION}
+
+    for ZR_SNAP in "${ZR_SNAPS[@]}"
+    do
+        echo "Removing zrep snapshot $ZR_SNAP"
+        zfs destroy $ZR_SNAP
+    done
+    
     for ZA_SNAP in "${ZA_SNAPS[@]}"
     do
         RN_SNAP=$(rename_snap $ZA_SNAP)
         echo "Renaming $ZA_SNAP to $RN_SNAP"
         zfs rename $ZA_SNAP $RN_SNAP
-    done
-    
-    for ZR_SNAP in "${ZR_SNAPS[@]}"
-    do
-        echo "Removing zrep snapshot $ZR_SNAP"
-        zfs destroy $ZR_SNAP
     done
 }
 
