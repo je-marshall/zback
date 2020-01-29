@@ -214,7 +214,7 @@ class RemoteDataset(Dataset):
         try:
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
-            self.sshclient.connect(self.host)
+            self.sshclient.connect(self.host, timeout=60)
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
@@ -544,7 +544,7 @@ class DatasetProcessor(Thread):
         # If this run is not a specified tag then bail
         if self.run_tag not in self.source.tags.keys():
             self.log.info('Specified run tag does not match dataset tags or defaults')
-            return 1
+            return 0
         try:
             self.log.info('Taking snapshot...')
             self.source.take_snap(tag=self.run_tag)
