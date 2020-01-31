@@ -43,11 +43,11 @@ has access to the server on the other end and will crap out dramatically if not.
 
 An example send job would be:
 
-> zfs set zback:send=ssh:remote-server1:REMOTEPOOL/REMOTEDATASET:hourly
+> zfs set zback:send=hourly:ssh:remote-server1:REMOTEPOOL/REMOTEDATASET
 
 This will attempt a send whenever the hourly run is called, to the server
 remote-server1, sending the snapshot over an SSH channel, to the pool mentioned,
-in the form `protocol:remote-hostname:zpool/dataset:run_tag`. 
+in the form `run_tag:protocol:remote-hostname:zpool/dataset`. 
 
 Multiple send jobs are permitted, so long as they are comma-separated.
 
