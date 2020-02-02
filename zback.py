@@ -760,13 +760,13 @@ def main():
         help=clear_cmd.__doc__.strip())
     parser_clear.set_defaults(func=clear_cmd)
     parser_clear.add_argument('--props', action='store_true', \
-        help='Clear zback related properties'
+        help='Clear zback related properties')
     parser_clear.add_argument('--holds', action='store_true', \
-        help='Remove send/recv holds placed on snapshots'
+        help='Remove send/recv holds placed on snapshots')
     parser_clear.add_argument('--snaps', action='store_true', \
-        help='Destroy zback-created snapshots'
+        help='Destroy zback-created snapshots')
     parser_clear.add_argument('--full', action='store_true', \
-        help='Remove all zback related data'
+        help='Remove all zback related data')
     args = parser.parse_args()
 
     parser_zabbix = subparsers.add_parser('zabbix', \
