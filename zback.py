@@ -694,6 +694,11 @@ def zabbix_cmd(args, dsets, log):
     print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in dsets]}))
     sys.exit(0)
 
+def help_cmd(args, dsets, log):
+    add_streamhandler(log)
+    log.setLevel(logging.DEBUG)
+    log.debug(HELP)
+
 def main():
     '''
     Parse args and decide what to do
@@ -709,7 +714,7 @@ def main():
         filelogging = False
     parser = argparse.ArgumentParser(description=HELP)
     subparsers = parser.add_subparsers(title='subcommands')
-    parser.set_defaults(func=lambda x: print('Use -h or --help to show help output'))
+    parser.set_defaults(func=help_cmd)
     parser.add_argument('-v', '--verbose', action='store_true', \
         help='Logs to console and increases logging output')
 
