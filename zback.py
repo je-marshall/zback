@@ -773,7 +773,6 @@ def main():
         help='Destroy zback-created snapshots')
     parser_clear.add_argument('--full', action='store_true', \
         help='Remove all zback related data')
-    args = parser.parse_args()
 
     parser_zabbix = subparsers.add_parser('zabbix', \
         help=zabbix_cmd.__doc__.strip())
