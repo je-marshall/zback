@@ -730,6 +730,7 @@ def main():
         filelogging = False
     parser = argparse.ArgumentParser(description=HELP)
     subparsers = parser.add_subparsers(title='subcommands')
+    parser.set_defaults(func=lambda x: print('Use -h or --help to show help output'))
     parser.add_argument('-v', '--verbose', action='store_true', \
         help='Logs to console and increases logging output')
 
