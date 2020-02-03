@@ -659,7 +659,7 @@ def status_cmd(args):
     '''
     Prints the status of a zback managed dataset
     '''
-    if dsets is None:
+    if args.dsets is None:
         add_streamhandler(log)
         log.setLevel(logging.DEBUG)
         log.error('No datasets managed by zback')
