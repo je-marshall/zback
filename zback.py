@@ -658,7 +658,7 @@ def process_cmd(args):
             this_thread.start()
     elif args.dataset in args.dsets:
         add_streamhandler(args.log)
-        if filelogging:
+        if args.filelogging:
             add_filehandler(args.log, args.dataset)
         this_run = DatasetProcessor(Dataset(args.dataset, args.log), args)
         this_run.start()
@@ -675,10 +675,10 @@ def clear_cmd(args):
     '''
     Clears zback related settings and snapshots from a dataset
     '''
+    # Maybe worth having a force clear here - try to clear even if it doesn't
+    # appear to be managed by zback
     if args.dsets is None:
-        add_streamhandler(args.log)
-        log.setLevel(logging.DEBUG)
-        log.error('No datasets managed by zback')
+        print('No datasets managed by zback')
         sys.exit(1)
     pass
 
@@ -687,9 +687,7 @@ def zabbix_cmd(args):
     Returns JSON formatted string of zback managed datasets for Zabbix
     '''
     if args.dsets is None:
-        add_streamhandler(args.log)
-        log.setLevel(logging.DEBUG)
-        log.error('No datasets managed by zback')
+        print('No datasets managed by zback')
         sys.exit(1)
     print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in args.dsets]}))
     sys.exit(0)
