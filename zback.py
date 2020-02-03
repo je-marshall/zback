@@ -103,6 +103,12 @@ class Dataset():
         '''
         set_cmd = 'zfs set %s=%s %s' % (PROP+prop, value, self.name)
         self._exec_command(set_cmd)
+    def clear_prop(self, prop, value):
+        '''
+        Clears a property
+        '''
+        clear_cmd = 'zfs inherit %s=%s %s' % (PROP+prop, value, self.name)
+        self._exec_command(clear_cmd)
     def get_holdlist(self):
         '''
         Update internal holdlist
@@ -374,6 +380,11 @@ class DatasetProcessor(Thread):
         self.log = self.source.log
         self.destination = None
         self.sending_snap = None
+    def _snapshot(self, job):
+        '''
+        Takes a snapshot if necessary
+        '''
+        pass
     def _send_receive(self, job):
         '''
         '''
@@ -643,13 +654,22 @@ def status_cmd(args):
         log.setLevel(logging.DEBUG)
         log.error('No datasets managed by zback')
         sys.exit(1)
-    pass
+    
 
 def process_cmd(args):
     '''
     Performs a run on datasets, spawns a new thread for each one
     '''
+    if args.resend and args.init:
+        print("Cannot resend and initialise at the same time")
+        sys.exit(1)
     if args.dataset == 'all':
+        if args.init:
+            print("Refusing to initialise all datasets")
+            sys.exit(1)
+        if args.resend:
+            print("Resend only available for individual datasets")
+            sys.exit(1)
         for dataset in args.dsets:
             this_log = logging.getLogger('zback.%s' % dataset)
             if args.filelogging:
@@ -675,12 +695,17 @@ def clear_cmd(args):
     '''
     Clears zback related settings and snapshots from a dataset
     '''
-    # Maybe worth having a force clear here - try to clear even if it doesn't
-    # appear to be managed by zback
+    add_streamhandler(args.log)
     if args.dsets is None:
         print('No datasets managed by zback')
         sys.exit(1)
-    pass
+    # Thought about checking if this is a zback managed dset but tbh there isn't
+    # a hell of a lot of point, either it is and clearing works or it isn't and
+    # it fails...
+    clear_set = Dataset(args.dataset, args.log)
+    clear_set.get_props()
+        
+        
 
 def zabbix_cmd(args):
     '''
