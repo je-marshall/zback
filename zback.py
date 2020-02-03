@@ -666,57 +666,57 @@ def status_cmd(args, dsets, log):
         sys.exit(1)
     pass
 
-def process_cmd(args, dsets, log):
+def process_cmd(args):
     '''
     Performs a run on datasets, spawns a new thread for each one
     '''
     if args.dataset == 'all':
-        for dataset in dsets:
+        for dataset in args.dsets:
             this_log = logging.getLogger('zback.%s' % dataset)
-            if filelogging:
+            if args.filelogging:
                 add_filehandler(this_log, dataset)
             this_thread = DatasetProcessor(Dataset(dataset, this_log), args)
             this_thread.start()
-    elif args.dataset in dsets:
-        add_streamhandler(log)
+    elif args.dataset in args.dsets:
+        add_streamhandler(args.log)
         if filelogging:
-            add_filehandler(log, args.dataset)
-        this_run = DatasetProcessor(Dataset(args.dataset, log), args)
+            add_filehandler(args.log, args.dataset)
+        this_run = DatasetProcessor(Dataset(args.dataset, args.log), args)
         this_run.start()
         this_run.join()
         sys.exit(0)
 
-def configure_cmd(args, dsets, log):
+def configure_cmd(args):
     '''
     Adds or edits zback related properties for a specified dataset
     '''
     pass
 
-def clear_cmd(args, dsets, log):
+def clear_cmd(args):
     '''
     Clears zback related settings and snapshots from a dataset
     '''
-    if dsets is None:
-        add_streamhandler(log)
+    if args.dsets is None:
+        add_streamhandler(args.log)
         log.setLevel(logging.DEBUG)
         log.error('No datasets managed by zback')
         sys.exit(1)
     pass
 
-def zabbix_cmd(args, dsets, log):
+def zabbix_cmd(args):
     '''
     Returns JSON formatted string of zback managed datasets for Zabbix
     '''
-    if dsets is None:
-        add_streamhandler(log)
+    if args.dsets is None:
+        add_streamhandler(args.log)
         log.setLevel(logging.DEBUG)
         log.error('No datasets managed by zback')
         sys.exit(1)
-    print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in dsets]}))
+    print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in args.dsets]}))
     sys.exit(0)
 
-def help_cmd(args, dsets, log):
-    add_streamhandler(log)
+def help_cmd(args):
+    add_streamhandler(args.log)
     log.setLevel(logging.DEBUG)
     log.debug(HELP)
 
@@ -786,8 +786,11 @@ def main():
         log.setLevel(logging.DEBUG)
     # Get all datasets
     dsets = get_zback_sets()
+    args.filelogging = filelogging
+    args.dsets = dsets
+    args.log = log
     # deal wiv it
-    args.func(args, dsets, log)
+    args.func(args)
 
 
 if __name__ == '__main__':
