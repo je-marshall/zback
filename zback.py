@@ -18,7 +18,7 @@ import paramiko
 # to change these go ahead.
 # PROP must be of the form [a-z]*: otherwise it makes it a pain to send to
 # Zabbix, feel free to ignore this stipulation if you have turned off sending.
-PROP = 'zback:'
+PROP = 'testing:'
 TIMEFMT = '%Y-%m-%d-%H%M'
 DEFTAGS = {'hourly' : '48', \
          'daily' : '7', \
