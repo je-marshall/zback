@@ -634,7 +634,7 @@ def add_filehandler(logger, logfile):
     logger.addHandler(handler)
     return
 
-def status_cmd(args, dsets, log):
+def status_cmd(args):
     '''
     Prints the status of a zback managed dataset
     '''
