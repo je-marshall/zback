@@ -584,6 +584,7 @@ class DatasetProcessor(Thread):
                 except Exception as exception:
                     send_fail = True
                     # Catch 'n log owt else
+                    self.log.exception(exception)
                     self.log.error("Unexpected error during send job")
                     self.log.error(exception)
                     continue
