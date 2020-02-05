@@ -736,6 +736,8 @@ def main():
             add_filehandler(this_log, dataset)
         this_thread = DatasetProcessor(Dataset(dataset, this_log), args.tag)
         this_thread.start()
+        # Added to crudely rate limit SSH connections, see if this is the problem
+        time.sleep(1)
 
 if __name__ == '__main__':
     main()
