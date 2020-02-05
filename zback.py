@@ -214,7 +214,10 @@ class RemoteDataset(Dataset):
         try:
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
-            self.sshclient.connect(self.host, timeout=60)
+            self.sshclient.connect(self.host, \
+                                   timeout=30, \
+                                   banner_timeout=60, \
+                                   auth_timeout=120)
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             self.log.error('Could not connect to host %s, ' \
@@ -531,7 +534,6 @@ class DatasetProcessor(Thread):
         Performs a run on a dataset.
         '''
         self.log.info('Beginning run with tag %s', self.run_tag)
-        # NOTE possibly worth removing or clarifying when to setup logging
         self.source.get_props()
         self.log.debug(self.source.props)
         try:
@@ -579,14 +581,13 @@ class DatasetProcessor(Thread):
                         LookupError,
                         subprocess.CalledProcessError) as exception:
                     send_fail = True
-                    self.log.error(exception)
+                    self.log.exception(exception)
                     continue
                 except Exception as exception:
                     send_fail = True
                     # Catch 'n log owt else
                     self.log.exception(exception)
                     self.log.error("Unexpected error during send job")
-                    self.log.error(exception)
                     continue
             if send_fail:
                 zbx_send(self.source.name, 'sent', '1', self.log)
