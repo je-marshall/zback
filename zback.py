@@ -621,8 +621,7 @@ def add_streamhandler(logger):
     classes. However if we always call this first, then it doesn't matter as the
     only type of logger added would be a stream one anyhow
     '''
-    formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s', \
-                                  '%H:%M:%S')
+    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s')
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]:
             return
@@ -645,16 +644,27 @@ def add_filehandler(logger, logfile):
     logger.addHandler(handler)
     return
 
+def get_dataset_status(dataset, verbose=False):
+    '''
+    Prettily prints the status of a dataset
+    '''
+    log = logging.getLogger('zback')
+    if verbose:
+        add_streamhandler(log)
+    
+
 def status_cmd(args):
     '''
     Prints the status of a zback managed dataset
     '''
     if args.dsets is None:
-        add_streamhandler(log)
-        log.setLevel(logging.DEBUG)
-        log.error('No datasets managed by zback')
+        print('No datasets managed by zback')
         sys.exit(1)
-    
+    if args.dataset in args.dsets:
+        get_dataset_status(args.dataset, args.verbose)
+    else:
+        for dataset in args.dsets:
+            get_dataset_status(dataset, args.verbose)
 
 def process_cmd(args):
     '''
@@ -695,14 +705,15 @@ def clear_cmd(args):
     '''
     Clears zback related settings and snapshots from a dataset
     '''
-    add_streamhandler(args.log)
+    log = logging.getLogger('zback')
+    add_streamhandler(log)
     if args.dsets is None:
         print('No datasets managed by zback')
         sys.exit(1)
     # Thought about checking if this is a zback managed dset but tbh there isn't
     # a hell of a lot of point, either it is and clearing works or it isn't and
     # it fails...
-    clear_set = Dataset(args.dataset, args.log)
+    clear_set = Dataset(args.dataset, log, args)
     clear_set.get_props()
         
         
@@ -788,7 +799,6 @@ def main():
     dsets = get_zback_sets()
     args.filelogging = filelogging
     args.dsets = dsets
-    args.log = log
     # deal wiv it
     args.func(args)
 
