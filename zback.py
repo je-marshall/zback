@@ -738,11 +738,6 @@ def zabbix_cmd(args):
     print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in args.dsets]}))
     sys.exit(0)
 
-def help_cmd(args):
-    add_streamhandler(args.log)
-    log.setLevel(logging.DEBUG)
-    log.debug(HELP)
-
 def main():
     '''
     Parse args and decide what to do
