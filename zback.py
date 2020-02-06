@@ -361,17 +361,24 @@ class RemoteDataset(Dataset):
         try:
             while not nc_err.channel.exit_status_ready():
                 data = sendproc.stdout.read(4096)
-                if data:
-                    conduit.send(data)
-                else:
-                    break
-            nc_error = nc_err.read()
-            if nc_error:
-                self.log.error('Netcat error: %s', nc_error)
-                raise ConnectionError
+                try:
+                    if data:
+                        conduit.send(data)
+                    else:
+                        break
+                except socket.timeout:
+                    if sendproc.poll() != 0:
+                        self.log.debug('Error with local send process')
+                        raise
+                    else:
+                        break
         except Exception as exception:
             self.log.debug(exception)
             raise
+        nc_error = nc_err.read()
+        if nc_error:
+            self.log.error('Netcat error: %s', nc_error)
+            raise ConnectionError
         self.log.info('Send successful')
         conduit.close()
 
