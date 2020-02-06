@@ -183,17 +183,11 @@ class Dataset():
             recv_cmd = 'zfs recv -F %s' % self.name
         else:
             recv_cmd = 'zfs recv %s' % self.name
-        try:
-            recvproc = subprocess.Popen(recv_cmd.split(), \
-                                        stdin=sendproc.stdout)
-            while recvproc.poll() is None:
-                time.sleep(1)
-        except subprocess.CalledProcessError as exception:
-            self.log.debug(exception)
-            raise
-        except Exception as exception:
-            self.log.debug(exception)
-            raise
+        
+        recvproc = subprocess.Popen(recv_cmd.split(), \
+                                    stdin=sendproc.stdout)
+        while recvproc.poll() is None:
+            time.sleep(1)
         self.log.info('Send successful')
 
 class RemoteDataset(Dataset):
