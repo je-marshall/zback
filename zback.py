@@ -342,39 +342,26 @@ class RemoteDataset(Dataset):
         else:
             recv_cmd = '/sbin/zfs recv %s' % self.name
         self.log.debug('recv_cmd: %s' % recv_cmd)
-        try:
-            self.log.debug('Setting up NC listener on remote')
-            port, nc_err = self._nc_listen(recv_cmd)
-            self.log.debug('nc listen established on port %s', port)
-            # Quick sleep to allow nc to get ready
-            time.sleep(1)
-            self.log.debug('Establishing connection to remote port %i', port)
-            conduit = self._get_connection(port)
-        except ConnectionError:
-            raise
-        except subprocess.CalledProcessError as exception:
-            self.log.debug(exception)
-            raise
-        except Exception as exception:
-            self.log.debug(exception)
-            raise
-        try:
-            while not nc_err.channel.exit_status_ready():
-                data = sendproc.stdout.read(4096)
-                try:
-                    if data:
-                        conduit.send(data)
-                    else:
-                        break
-                except socket.timeout:
-                    if sendproc.poll() != 0:
-                        self.log.debug('Error with local send process')
-                        raise
-                    else:
-                        break
-        except Exception as exception:
-            self.log.debug(exception)
-            raise
+        self.log.debug('Setting up NC listener on remote')
+        port, nc_err = self._nc_listen(recv_cmd)
+        self.log.debug('nc listen established on port %s', port)
+        # Quick sleep to allow nc to get ready
+        time.sleep(1)
+        self.log.debug('Establishing connection to remote port %i', port)
+        conduit = self._get_connection(port)
+        while not nc_err.channel.exit_status_ready():
+            data = sendproc.stdout.read(4096)
+            try:
+                if data:
+                    conduit.send(data)
+                else:
+                    break
+            except socket.timeout:
+                if sendproc.poll() != 0:
+                    self.log.debug('Error with local send process')
+                    raise
+                else:
+                    break
         nc_error = nc_err.read()
         if nc_error:
             self.log.error('Netcat error: %s', nc_error)
