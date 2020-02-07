@@ -205,10 +205,10 @@ class RemoteDataset(Dataset):
         # Run this now to throw an instant error
         self.get_snaps()
     def _get_ssh_client(self):
+        try:
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
-            self.sshclient.connect(self.host, \
-                                   banner_timeout=60)
+            self.sshclient.connect(self.host, banner_timeout=60)
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
             raise ConnectionError('Could not connect to host %s, ' \
