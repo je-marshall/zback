@@ -205,43 +205,36 @@ class RemoteDataset(Dataset):
         # Run this now to throw an instant error
         self.get_snaps()
     def _get_ssh_client(self):
-        try:
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(self.host, \
                                    banner_timeout=60)
         except paramiko.BadHostKeyException as exception:
             self.log.debug(exception)
-            self.log.error('Could not connect to host %s, ' \
-                            'bad host key', self.host)
-            raise ConnectionError
+            raise ConnectionError('Could not connect to host %s, ' \
+                                  'bad host key', self.host)
         except paramiko.AuthenticationException as exception:
             self.log.debug(exception)
-            self.log.error('Could not connect to host %s, ' \
-                            'authentication failure', self.host)
-            raise ConnectionError
+            raise ConnectionError('Could not connect to host %s, ' \
+                                  'authentication failure', self.host)
         except paramiko.SSHException as exception:
             self.log.debug(exception)
-            self.log.error('Could not connect to host %s, ' \
-                            'check logs', self.host)
-            raise ConnectionError
+            raise ConnectionError('Could not connect to host %s, ' \
+                                  'check logs', self.host)
         except socket.error as exception:
             self.log.debug(exception)
-            self.log.error('Socket error while connecting to ' \
-                            '%s', self.host)
-            raise ConnectionError
+            raise ConnectionError('Socket error while connecting to ' \
+                                  '%s', self.host)
         except IndexError as exception:
             self.log.debug(exception)
-            self.log.error('Destination incorrectly formatted for ' \
-                            'dataset %s', self.name)
-            raise ConnectionError
+            raise ConnectionError('Destination incorrectly formatted for ' \
+                                  'dataset %s', self.name)
         except IOError as exception:
             self.log.debug(exception)
-            self.log.error('Could not load system host keys')
-            raise ConnectionError
+            raise ConnectionError('Could not load system host keys')
         except Exception as exception:
             self.log.debug(exception)
-            raise
+            raise ConnectionError('Unexpection! Check debug logs for exception info')
     def _exec_command(self, command):
         '''
         Runs a remote command and outputs in the same way as the super class
@@ -445,8 +438,7 @@ class DatasetProcessor(Thread):
             self.log.debug('Beginning send')
             sendproc = self.source.send(src_match)
             self.destination.receive(sendproc, initialise=self.initialise)
-        except Exception as exception:
-            self.log.debug(exception)
+        except ConnectionError:
             # Doesn't matter what went wrong, pull the send hold and bail
             self.log.debug('Error during sending, attempting to release send hold')
             self.source.release_snap(self.sending_snap, send_hold)
@@ -562,16 +554,11 @@ class DatasetProcessor(Thread):
                     zbx_send(self.source.name, 'sending', '1', self.log)
                     self._send_receive(job)
                     zbx_send(self.source.name, 'sending', '0', self.log)
-                except (BlockingIOError,
-                        ConnectionError,
-                        LookupError,
-                        subprocess.CalledProcessError) as exception:
-                    send_fail = True
-                    self.log.exception(exception)
-                    continue
                 except Exception as exception:
+                    # All known exceptions are handled at lower levels with
+                    # debug logging, this is to catch anything that hasn't
+                    # already been anticipated...
                     send_fail = True
-                    # Catch 'n log owt else
                     self.log.exception(exception)
                     self.log.error("Unexpected error during send job")
                     continue
