@@ -705,7 +705,7 @@ def clear_cmd(args):
         clear_set._clear_holds()
     if args.snaps or args.full:
         print('Destroying all zback related snapshots')
-        clear_set.get_snaplist()
+        clear_set.get_snaps()
         for snap in clear_set.snaplist:
             clear_set.destroy_snap(snap)
 
