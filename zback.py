@@ -693,7 +693,7 @@ def clear_cmd(args):
     log = logging.getLogger('zback')
     if args.verbose:
         add_streamhandler(log)
-    clear_set = Dataset(args.dataset, log)
+    clear_set = Dataset(args.dataset.pop(), log)
     clear_set.get_props()
     possible_props = ['send', 'recv', 'manage', 'tags']
     if args.props or args.full:
@@ -761,7 +761,7 @@ def main():
     parser_clear = subparsers.add_parser('clear', \
         help=clear_cmd.__doc__.strip())
     parser_clear.set_defaults(func=clear_cmd)
-    parser_clear.add_argument('dataset', nargs=1, action='store', \
+    parser_clear.add_argument('dataset', nargs=1, \
         help='Dataset to clear, required')
     parser_clear.add_argument('--props', action='store_true', \
         help='Clear zback related properties')
