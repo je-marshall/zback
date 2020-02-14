@@ -709,6 +709,7 @@ def configure_cmd(args):
                 print('Invalid tags specified, please try again')
                 continue
             configure_set.set_prop('tags', tags)
+            break
     if query_yes_no('Add send job? [y/N]: '):
         while True:
             send_job = input('''Specify send job, in the form \
@@ -719,6 +720,7 @@ def configure_cmd(args):
                     print('Invalid job spec, try again')
                     continue
             configure_set.set_prop('send', send_job)
+            break
 
 def clear_cmd(args):
     '''
