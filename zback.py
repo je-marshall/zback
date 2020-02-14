@@ -646,7 +646,7 @@ def add_filehandler(logger, logfile):
 def query_yes_no(question):
     valid = {'yes': True, 'y': True, 'ye': True, \
              'no': False, 'n': False}
-    default = 'yes'
+    default = 'no'
     while True:
         choice = input(question).lower()
         if choice == '':
@@ -694,26 +694,26 @@ def configure_cmd(args):
     if args.dataset in args.dsets:
         if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
             return
-    if not query_yes_no('Manage %s with zback? [y/N]: '):
+    if not query_yes_no('Manage %s with zback? [y/N]: ' % this_set):
         return
     else:
         configure_set = Dataset(this_set, log)
         configure_set.set_prop('manage', 'yes')
     if not query_yes_no('Use default tags? [y/N]: '):
         while True:
-            tags = input('Specify tags for this set, in the form \
-            tagname:XX,tagname2:XX : ')
+            tags = input('''Specify tags for this set, in the form \
+            tagname:XX,tagname2:XX : ''')
             try:
                 tag_dict = dict(tag.split(':') for tag in tags.split(','))
             except ValueError:
                 print('Invalid tags specified, please try again')
                 continue
             configure_set.set_prop('tags', tags)
-    if not query_yes_no('Add send job? [y/N]: '):
+    if query_yes_no('Add send job? [y/N]: '):
         while True:
-            send_job = input('Specify send job, in the form \
+            send_job = input('''Specify send job, in the form \
             tag:protocol:destination_host:destination_dataset - \
-            multiple jobs can be comma-separated: ')
+            multiple jobs can be comma-separated: ''')
             for job in send_job.split(','):
                 if len(job.split(':')) != 4:
                     print('Invalid job spec, try again')
