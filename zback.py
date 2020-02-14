@@ -652,7 +652,6 @@ def get_dataset_status(dataset, verbose=False):
     if verbose:
         add_streamhandler(log)
     
-
 def status_cmd(args):
     '''
     Prints the status of a zback managed dataset
