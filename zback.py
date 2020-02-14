@@ -761,6 +761,8 @@ def main():
     parser_clear = subparsers.add_parser('clear', \
         help=clear_cmd.__doc__.strip())
     parser_clear.set_defaults(func=clear_cmd)
+    parser_clear.add_argument('dataset', nargs=1, \
+        help='Dataset to clear, required')
     parser_clear.add_argument('--props', action='store_true', \
         help='Clear zback related properties')
     parser_clear.add_argument('--holds', action='store_true', \
