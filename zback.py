@@ -684,21 +684,30 @@ def clear_cmd(args):
     '''
     Clears zback related settings and snapshots from a dataset
     '''
-    log = logging.getLogger('zback')
-    add_streamhandler(log)
     if args.dsets is None:
         print('No datasets managed by zback')
         sys.exit(1)
     # Thought about checking if this is a zback managed dset but tbh there isn't
     # a hell of a lot of point, either it is and clearing works or it isn't and
     # it fails...
+    log = logging.getLogger('zback')
+    if args.verbose:
+        add_streamhandler(log)
     clear_set = Dataset(args.dataset, log, args)
     clear_set.get_props()
     possible_props = ['send', 'recv', 'manage', 'tags']
-    if args.props:
+    if args.props or args.full:
         for prop in possible_props:
+            print('Clearing property: %s' % prop)
             clear_set.clear_prop(prop)
-        
+    if args.holds or args.full:
+        print('Clearing send holds')
+        clear_set._clear_holds()
+    if args.snaps or args.full:
+        print('Destroying all zback related snapshots')
+        clear_set.get_snaplist()
+        for snap in clear_set.snaplist:
+            clear_set.destroy_snap(snap)
 
 def zabbix_cmd(args):
     '''
