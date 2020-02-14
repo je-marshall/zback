@@ -693,7 +693,7 @@ def clear_cmd(args):
     log = logging.getLogger('zback')
     if args.verbose:
         add_streamhandler(log)
-    clear_set = Dataset(args.dataset, log, args)
+    clear_set = Dataset(args.dataset, log)
     clear_set.get_props()
     possible_props = ['send', 'recv', 'manage', 'tags']
     if args.props or args.full:
