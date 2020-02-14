@@ -648,7 +648,7 @@ def query_yes_no(question):
              'no': False, 'n': False}
     default = 'yes'
     while True:
-        choice = raw_input(question).lower()
+        choice = input(question).lower()
         if choice == '':
             return valid[default]
         elif choice in valid:
@@ -701,7 +701,7 @@ def configure_cmd(args):
         configure_set.set_prop('manage', 'yes')
     if not query_yes_no('Use default tags? [y/N]: '):
         while True:
-            tags = raw_input('Specify tags for this set, in the form \
+            tags = input('Specify tags for this set, in the form \
             tagname:XX,tagname2:XX : ')
             try:
                 tag_dict = dict(tag.split(':') for tag in tags.split(','))
@@ -711,7 +711,7 @@ def configure_cmd(args):
             configure_set.set_prop('tags', tags)
     if not query_yes_no('Add send job? [y/N]: '):
         while True:
-            send_job = raw_input('Specify send job, in the form \
+            send_job = input('Specify send job, in the form \
             tag:protocol:destination_host:destination_dataset - \
             multiple jobs can be comma-separated: ')
             for job in send_job.split(','):
