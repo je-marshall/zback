@@ -690,7 +690,7 @@ def configure_cmd(args):
     Adds or edits zback related properties for a specified dataset
     '''
     log = logging.getLogger('zback.%s' % args.dataset)
-    if args.dataset in args.dset:
+    if args.dataset in args.dsets:
         if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
             return
     log = logging.getLogger(args.dataset)
