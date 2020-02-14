@@ -103,11 +103,11 @@ class Dataset():
         '''
         set_cmd = 'zfs set %s=%s %s' % (PROP+prop, value, self.name)
         self._exec_command(set_cmd)
-    def clear_prop(self, prop, value):
+    def clear_prop(self, prop):
         '''
         Clears a property
         '''
-        clear_cmd = 'zfs inherit %s=%s %s' % (PROP+prop, value, self.name)
+        clear_cmd = 'zfs inherit %s %s' % (PROP+prop, self.name)
         self._exec_command(clear_cmd)
     def get_holdlist(self):
         '''
@@ -694,7 +694,10 @@ def clear_cmd(args):
     # it fails...
     clear_set = Dataset(args.dataset, log, args)
     clear_set.get_props()
-        
+    possible_props = ['send', 'recv', 'manage', 'tags']
+    if args.props:
+        for prop in possible_props:
+            clear_set.clear_prop(prop)
         
 
 def zabbix_cmd(args):
