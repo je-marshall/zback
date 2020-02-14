@@ -621,7 +621,8 @@ def add_streamhandler(logger):
     classes. However if we always call this first, then it doesn't matter as the
     only type of logger added would be a stream one anyhow
     '''
-    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s')
+    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s', \
+                                  '%H:%M:%S')
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]:
             return
