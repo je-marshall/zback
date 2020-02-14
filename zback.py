@@ -773,7 +773,7 @@ def main():
         log.setLevel(logging.DEBUG)
         log.warning('No logdir configured, console logging enabled')
         filelogging = False
-    parser = argparse.ArgumentParser(description=HELP)
+    parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='subcommands')
     parser.set_defaults(func=help_cmd)
     parser.add_argument('-v', '--verbose', action='store_true', \
