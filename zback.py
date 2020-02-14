@@ -701,8 +701,8 @@ def configure_cmd(args):
         configure_set.set_prop('manage', 'yes')
     if not query_yes_no('Use default tags? [y/N]: '):
         while True:
-            tags = input('''Specify tags for this set, in the form \
-            tagname:XX,tagname2:XX : ''')
+            tags = input('Specify tags for this set, in the form '\
+            'tagname:XX,tagname2:XX : ')
             try:
                 tag_dict = dict(tag.split(':') for tag in tags.split(','))
             except ValueError:
@@ -712,9 +712,9 @@ def configure_cmd(args):
             break
     if query_yes_no('Add send job? [y/N]: '):
         while True:
-            send_job = input('''Specify send job, in the form \
-            tag:protocol:destination_host:destination_dataset - \
-            multiple jobs can be comma-separated: ''')
+            send_job = input('Specify send job, in the form '\
+            'tag:protocol:destination_host:destination_dataset - '\
+            'multiple jobs can be comma-separated: ')
             for job in send_job.split(','):
                 if len(job.split(':')) != 4:
                     print('Invalid job spec, try again')
