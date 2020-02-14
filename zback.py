@@ -667,8 +667,6 @@ def process_cmd(args):
             this_thread.start()
     elif args.dataset in args.dsets:
         this_log = logging.getLogger('zback.%s' % args.dataset)
-        if args.verbose:
-            add_streamhandler(this_log)
         if args.filelogging:
             add_filehandler(this_log, args.dataset)
         this_run = DatasetProcessor(Dataset(args.dataset, this_log), args)
@@ -693,8 +691,6 @@ def clear_cmd(args):
     # a hell of a lot of point, either it is and clearing works or it isn't and
     # it fails...
     log = logging.getLogger('zback')
-    if args.verbose:
-        add_streamhandler(log)
     clear_set = Dataset(args.dataset.pop(), log)
     clear_set.get_props()
     possible_props = ['send', 'recv', 'manage', 'tags']
