@@ -689,15 +689,15 @@ def configure_cmd(args):
     '''
     Adds or edits zback related properties for a specified dataset
     '''
-    log = logging.getLogger('zback.%s' % args.dataset)
+    this_set = args.dataset.pop()
+    log = logging.getLogger('zback.%s' % this_set)
     if args.dataset in args.dsets:
         if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
             return
-    log = logging.getLogger(args.dataset)
     if not query_yes_no('Manage %s with zback? [y/N]: '):
         return
     else:
-        configure_set = Dataset(args.dataset.pop(), log)
+        configure_set = Dataset(this_set, log)
         configure_set.set_prop('manage', 'yes')
     if not query_yes_no('Use default tags? [y/N]: '):
         while True:
