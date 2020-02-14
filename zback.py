@@ -29,8 +29,6 @@ ZBX_CONF = '/etc/zabbix/zabbix_agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
 LOG_LVL = logging.DEBUG
-HELP = '''
-       '''
 
 class Dataset():
     '''
@@ -645,6 +643,19 @@ def add_filehandler(logger, logfile):
     logger.addHandler(handler)
     return
 
+def query_yes_no(question):
+    valid = {'yes': True, 'y': True, 'ye': True, \
+             'no': False, 'n': False}
+    default = 'yes'
+    while True:
+        choice = raw_input(question).lower()
+        if choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            print('Please respond y/n')
+
 def process_cmd(args):
     '''
     Performs a run on datasets, spawns a new thread for each one
@@ -678,7 +689,36 @@ def configure_cmd(args):
     '''
     Adds or edits zback related properties for a specified dataset
     '''
-    pass
+    log = logging.getLogger('zback.%s' % args.dataset)
+    if args.dataset in args.dset:
+        if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
+            return
+    log = logging.getLogger(args.dataset)
+    if not query_yes_no('Manage %s with zback? [y/N]: '):
+        return
+    else:
+        configure_set = Dataset(args.dataset.pop(), log)
+        configure_set.set_prop('manage', 'yes')
+    if not query_yes_no('Use default tags? [y/N]: '):
+        while True:
+            tags = raw_input('Specify tags for this set, in the form \
+            tagname:XX,tagname2:XX : ')
+            try:
+                tag_dict = dict(tag.split(':') for tag in tags.split(','))
+            except ValueError:
+                print('Invalid tags specified, please try again')
+                continue
+            configure_set.set_prop('tags', tags)
+    if not query_yes_no('Add send job? [y/N]: '):
+        while True:
+            send_job = raw_input('Specify send job, in the form \
+            tag:protocol:destination_host:destination_dataset - \
+            multiple jobs can be comma-separated: ')
+            for job in send_job.split(','):
+                if len(job.split(':')) != 4:
+                    print('Invalid job spec, try again')
+                    continue
+            configure_set.set_prop('send', send_job)
 
 def clear_cmd(args):
     '''
@@ -718,7 +758,7 @@ def zabbix_cmd(args):
     sys.exit(0)
 
 def help_cmd(args):
-    print(HELP)
+    print('Please specify a subcommand, or use --help to see options')
 
 def main():
     '''
@@ -754,7 +794,7 @@ def main():
     parser_configure = subparsers.add_parser('configure', \
         help=configure_cmd.__doc__.strip())
     parser_configure.set_defaults(func=configure_cmd)
-    parser_configure.add_argument('dataset', help='Dataset to configure')
+    parser_configure.add_argument('dataset', nargs=1, help='Dataset to configure')
 
     parser_clear = subparsers.add_parser('clear', \
         help=clear_cmd.__doc__.strip())
