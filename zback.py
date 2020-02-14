@@ -645,27 +645,6 @@ def add_filehandler(logger, logfile):
     logger.addHandler(handler)
     return
 
-def get_dataset_status(dataset, verbose=False):
-    '''
-    Prettily prints the status of a dataset
-    '''
-    log = logging.getLogger('zback')
-    if verbose:
-        add_streamhandler(log)
-    
-def status_cmd(args):
-    '''
-    Prints the status of a zback managed dataset
-    '''
-    if args.dsets is None:
-        print('No datasets managed by zback')
-        sys.exit(1)
-    if args.dataset in args.dsets:
-        get_dataset_status(args.dataset, args.verbose)
-    else:
-        for dataset in args.dsets:
-            get_dataset_status(dataset, args.verbose)
-
 def process_cmd(args):
     '''
     Performs a run on datasets, spawns a new thread for each one
@@ -749,12 +728,6 @@ def main():
     parser.set_defaults(func=help_cmd)
     parser.add_argument('-v', '--verbose', action='store_true', \
         help='Logs to console and increases logging output')
-
-    parser_status = subparsers.add_parser('status', \
-        help=status_cmd.__doc__.strip())
-    parser_status.set_defaults(func=status_cmd)
-    parser_status.add_argument('dataset', nargs='?', default='all', \
-        help='Defaults to all zback managed datasets')
 
     parser_process = subparsers.add_parser('process', \
         help=process_cmd.__doc__.strip())
