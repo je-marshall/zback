@@ -678,6 +678,8 @@ def process_cmd(args):
             this_thread.start()
     elif args.dataset in args.dsets:
         this_log = logging.getLogger('zback.%s' % args.dataset)
+        if args.init:
+            add_streamhandler(this_log)
         if args.filelogging:
             add_filehandler(this_log, args.dataset)
         this_run = DatasetProcessor(Dataset(args.dataset, this_log), args)
