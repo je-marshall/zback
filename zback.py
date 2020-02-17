@@ -18,7 +18,7 @@ import paramiko
 # to change these go ahead.
 # PROP must be of the form [a-z]*: otherwise it makes it a pain to send to
 # Zabbix, feel free to ignore this stipulation if you have turned off sending.
-PROP = 'testing:'
+PROP = 'zback:'
 TIMEFMT = '%Y-%m-%d-%H%M'
 DEFTAGS = {'hourly' : '48', \
          'daily' : '7', \
@@ -793,7 +793,7 @@ def main():
     parser_process.add_argument('--init', action='store_true', \
         help='Initialise destination dataset if sending')
     parser_process.add_argument('--resend', action='store_true', \
-        help='Do not snapshot or prune, just attempt to resend last snapshot')
+        help='Do not snapshot or prune, just attempt to resend last snapshot NOT IMPLEMENTED YET')
 
     parser_configure = subparsers.add_parser('configure', \
         help=configure_cmd.__doc__.strip())
