@@ -20,6 +20,26 @@ going to explain how to set up or anything.
 This software is in an early testing phase and has been running on CentOS 7
 only, I accept literally no responsibility for it right now.
 
+The syntax for commands has been modelled on zfs itself, with each subcommand
+having its own help:
+
+> usage: zback.py [-h] [-v] {process,configure,clear,zabbix} ...
+> 
+> optional arguments:
+>   -h, --help            show this help message and exit
+>   -v, --verbose         Logs to console and increases logging output
+> 
+> subcommands:
+>   {process,configure,clear,zabbix}
+>     process             Performs a run on datasets, spawns a new thread for
+>                         each one
+>     configure           Adds or edits zback related properties for a specified
+>                         dataset
+>     clear               Clears zback related settings and snapshots from a
+>                         dataset
+>     zabbix              Returns JSON formatted string of zback managed
+>                         datasets for Zabbix
+
 ## Getting started
 
 zback has been designed with minimalism in mind, but still has one requirement,
@@ -60,14 +80,27 @@ If the destination is a local dataset, then the format is:
 
 > zfs set zback:send=local:DESTPOOL/DESTSET:hourly
 
-Once both manage has been set and a send job has been configured, you should be
-ready to go. To set up an initial push, run zback with the initalise flag:
+These options can be more easily set with:
 
-> zback -i $ZPOOL/$DATASET -t $run_tag
+> zback configure $DATASET
 
-This will attempt to send the snapshot to the remote side.
+Once you have set the options on a dataset correctly, you can then begin with an
+initial seed transfer. To do this, call the `zback process` subcommand:
 
-## Customisation
+> zback process --init $DATASET
+
+This will attempt to create the remote dataset if none already exists - if there
+is already a dataset but it has no snapshots associated with it then this is
+also fine (for example you need to create a remote dataset with specific options
+set on it). However if the remote dataset exists and has snapshots associated
+with it then zback will refuse to initialise.
+
+To call a normal run on a dataset, simply omit the `--init`:
+
+> zback process $DATASET
+
+Called with no datasets, zback will process all managed datasets, each one in a
+separate thread.
 
 By default, if no tags are specified on a dataset then zback will assume the
 following tags are going to be used:
@@ -77,16 +110,16 @@ following tags are going to be used:
 > weekly:6
 > monthly:6
 
-There are two ways that you can change this behaviour. One is to edit zback.py
-and change the variable DEFTAGS, which will permanently alter this behaviour
+There are two ways that you can change this behaviour. One is to edit `zback.py`
+and change the variable `DEFTAGS`, which will permanently alter this behaviour
 across all datasets.
 
 However, if you use zfs to set a property called tags, for example:
 
 > zfs set zback:tags=frequent:5,hourly:24 $ZPOOL/$DATASET
 
-Then this will override the defaults for this dataset only. The syntax ought to
-be self-explanatory. 
+Then this will override the defaults for this dataset only. The same option can
+be set more easily by running the `zback configure` subcommand.
 
 One thing to note, if you are running zback on both sides of a sync, that on the
 other end you will need to specify a recv flag, so as to prevent zback from
@@ -94,4 +127,9 @@ taking unnecessary snapshots. This can be done via:
 
 > zfs set zback:recv=hourly $ZPOOL/$DATASET
 
+If you have initialised the dataset using zback, then this should not be
+necessary as it will have set this flag, as well as the manage flag, on the
+remote dataset during the initialisation.
 
+If you want to remove zback, as well as its custom options, hold tags, snapshots
+or all of the above, then please use the `zback clear` subcommand.

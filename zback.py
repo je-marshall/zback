@@ -29,8 +29,6 @@ ZBX_CONF = '/etc/zabbix/zabbix_agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
 LOG_LVL = logging.DEBUG
-HELP = '''
-       '''
 
 class Dataset():
     '''
@@ -103,6 +101,12 @@ class Dataset():
         '''
         set_cmd = 'zfs set %s=%s %s' % (PROP+prop, value, self.name)
         self._exec_command(set_cmd)
+    def clear_prop(self, prop):
+        '''
+        Clears a property
+        '''
+        clear_cmd = 'zfs inherit %s %s' % (PROP+prop, self.name)
+        self._exec_command(clear_cmd)
     def get_holdlist(self):
         '''
         Update internal holdlist
@@ -364,15 +368,21 @@ class DatasetProcessor(Thread):
     Accepts a local dataset and does a run on it. This consists of taking a
     snapshot if appropriate, sending if appropriate and pruning if appropriate
     '''
-    def __init__(self, source, run_tag, initialise=False):
+    def __init__(self, source_dataset, args):
         Thread.__init__(self)
-        self.source = source
-        self.run_tag = run_tag
-        self.initialise = initialise
+        self.source = source_dataset
+        self.run_tag = args.tag
+        self.initialise = args.init
+        self.send_only = args.resend
         self.tags = None
         self.log = self.source.log
         self.destination = None
         self.sending_snap = None
+    def _snapshot(self, job):
+        '''
+        Takes a snapshot if necessary
+        '''
+        pass
     def _send_receive(self, job):
         '''
         '''
@@ -609,7 +619,7 @@ def add_streamhandler(logger):
     classes. However if we always call this first, then it doesn't matter as the
     only type of logger added would be a stream one anyhow
     '''
-    formatter = logging.Formatter('%(asctime)s::%(name)s::%(levelname)s: %(message)s', \
+    formatter = logging.Formatter('%(asctime)s::%(levelname)s: %(message)s', \
                                   '%H:%M:%S')
     if logger.handlers:
         if [h for h in logger.handlers if isinstance(h, logging.StreamHandler)]:
@@ -633,89 +643,193 @@ def add_filehandler(logger, logfile):
     logger.addHandler(handler)
     return
 
+def query_yes_no(question):
+    valid = {'yes': True, 'y': True, 'ye': True, \
+             'no': False, 'n': False}
+    default = 'no'
+    while True:
+        choice = input(question).lower()
+        if choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            print('Please respond y/n')
+
+def process_cmd(args):
+    '''
+    Performs a run on datasets, spawns a new thread for each one
+    '''
+    if args.resend and args.init:
+        print("Cannot resend and initialise at the same time")
+        sys.exit(1)
+    if args.dataset == 'all':
+        if args.init:
+            print("Refusing to initialise all datasets")
+            sys.exit(1)
+        if args.resend:
+            print("Resend only available for individual datasets")
+            sys.exit(1)
+        for dataset in args.dsets:
+            this_log = logging.getLogger('zback.%s' % dataset)
+            if args.filelogging:
+                add_filehandler(this_log, dataset)
+            this_thread = DatasetProcessor(Dataset(dataset, this_log), args)
+            this_thread.start()
+    elif args.dataset in args.dsets:
+        this_log = logging.getLogger('zback.%s' % args.dataset)
+        if args.init:
+            add_streamhandler(this_log)
+        if args.filelogging:
+            add_filehandler(this_log, args.dataset)
+        this_run = DatasetProcessor(Dataset(args.dataset, this_log), args)
+        this_run.start()
+        this_run.join()
+        sys.exit(0)
+
+def configure_cmd(args):
+    '''
+    Adds or edits zback related properties for a specified dataset
+    '''
+    this_set = args.dataset.pop()
+    log = logging.getLogger('zback.%s' % this_set)
+    if args.dataset in args.dsets:
+        if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
+            return
+    if not query_yes_no('Manage %s with zback? [y/N]: ' % this_set):
+        return
+    else:
+        configure_set = Dataset(this_set, log)
+        configure_set.set_prop('manage', 'yes')
+    if not query_yes_no('Use default tags? [y/N]: '):
+        while True:
+            tags = input('Specify tags for this set, in the form '\
+            'tagname:XX,tagname2:XX : ')
+            try:
+                tag_dict = dict(tag.split(':') for tag in tags.split(','))
+            except ValueError:
+                print('Invalid tags specified, please try again')
+                continue
+            configure_set.set_prop('tags', tags)
+            break
+    if query_yes_no('Add send job? [y/N]: '):
+        while True:
+            send_job = input('Specify send job, in the form '\
+            'tag:protocol:destination_host:destination_dataset - '\
+            'multiple jobs can be comma-separated: ')
+            for job in send_job.split(','):
+                if len(job.split(':')) != 4:
+                    print('Invalid job spec, try again')
+                    continue
+            configure_set.set_prop('send', send_job)
+            break
+
+def clear_cmd(args):
+    '''
+    Clears zback related settings and snapshots from a dataset
+    '''
+    if args.dsets is None:
+        print('No datasets managed by zback')
+        sys.exit(1)
+    # Thought about checking if this is a zback managed dset but tbh there isn't
+    # a hell of a lot of point, either it is and clearing works or it isn't and
+    # it fails...
+    log = logging.getLogger('zback')
+    clear_set = Dataset(args.dataset.pop(), log)
+    clear_set.get_props()
+    possible_props = ['send', 'recv', 'manage', 'tags']
+    if args.props or args.full:
+        for prop in possible_props:
+            print('Clearing property: %s' % prop)
+            clear_set.clear_prop(prop)
+    if args.holds or args.full:
+        print('Clearing send holds')
+        clear_set._clear_holds()
+    if args.snaps or args.full:
+        print('Destroying all zback related snapshots')
+        clear_set.get_snaps()
+        for snap in clear_set.snaplist:
+            clear_set.destroy_snap(snap)
+
+def zabbix_cmd(args):
+    '''
+    Returns JSON formatted string of zback managed datasets for Zabbix
+    '''
+    if args.dsets is None:
+        print('No datasets managed by zback')
+        sys.exit(1)
+    print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in args.dsets]}))
+    sys.exit(0)
+
+def help_cmd(args):
+    print('Please specify a subcommand, or use --help to see options')
+
 def main():
     '''
     Parse args and decide what to do
     '''
+    # Set up logging
     log = logging.getLogger('zback')
     log.setLevel(LOG_LVL)
     filelogging = True
     if not os.path.exists(LOG_DIR):
+        add_streamhandler(log)
+        log.setLevel(logging.DEBUG)
         log.warning('No logdir configured, console logging enabled')
         filelogging = False
-    parser = argparse.ArgumentParser(description=HELP)
-    parser.add_argument('-t', \
-                        '--tag', \
-                        help='Tag for this run', \
-                        action='store')
-    parser.add_argument('-i', '--initialise', \
-                        help='Attempt to initialise this dataset', \
-                        action='store')
-    parser.add_argument('-d', '--dataset', \
-                        help='Perform a run only on this dataset', \
-                        action='store')
-    parser.add_argument('-v', \
-                        '--verbose', \
-                        help='Prints debug output to console', \
-                        action='store_true')
-    parser.add_argument('-z', '--zabbix', \
-                        help='JSON formatted list for Zabbix auto-discovery', \
-                        action='store_true')
-    parser.add_argument('--clearholds', \
-                        help='DANGEROUS: Clears all holds on a dataset', \
-                        action='store')
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(title='subcommands')
+    parser.set_defaults(func=help_cmd)
+    parser.add_argument('-v', '--verbose', action='store_true', \
+        help='Logs to console and increases logging output')
+
+    parser_process = subparsers.add_parser('process', \
+        help=process_cmd.__doc__.strip())
+    parser_process.set_defaults(func=process_cmd)
+    parser_process.add_argument('dataset', nargs='?', default='all', \
+        help='Defaults to all zback managed datasets')
+    parser_process.add_argument('tag', \
+        help='REQUIRED: tag for backup run')
+    parser_process.add_argument('--init', action='store_true', \
+        help='Initialise destination dataset if sending')
+    parser_process.add_argument('--resend', action='store_true', \
+        help='Do not snapshot or prune, just attempt to resend last snapshot NOT IMPLEMENTED YET')
+
+    parser_configure = subparsers.add_parser('configure', \
+        help=configure_cmd.__doc__.strip())
+    parser_configure.set_defaults(func=configure_cmd)
+    parser_configure.add_argument('dataset', nargs=1, help='Dataset to configure')
+
+    parser_clear = subparsers.add_parser('clear', \
+        help=clear_cmd.__doc__.strip())
+    parser_clear.set_defaults(func=clear_cmd)
+    parser_clear.add_argument('dataset', nargs=1, \
+        help='Dataset to clear, required')
+    parser_clear.add_argument('--props', action='store_true', \
+        help='Clear zback related properties')
+    parser_clear.add_argument('--holds', action='store_true', \
+        help='Remove send/recv holds placed on snapshots')
+    parser_clear.add_argument('--snaps', action='store_true', \
+        help='Destroy zback-created snapshots')
+    parser_clear.add_argument('--full', action='store_true', \
+        help='Remove all zback related data')
+
+    parser_zabbix = subparsers.add_parser('zabbix', \
+        help=zabbix_cmd.__doc__.strip())
+    parser_zabbix.set_defaults(func=zabbix_cmd)
+
     args = parser.parse_args()
+
     # If verbose selected, add a stream handler
     if args.verbose:
         add_streamhandler(log)
         log.setLevel(logging.DEBUG)
     # Get all datasets
     dsets = get_zback_sets()
-    if dsets is None:
-        log.info('No datasets configured, exiting.')
-        sys.exit(0)
-    # Zabbix dump if requested
-    if args.zabbix:
-        print(json.dumps({'data': [{"{#ZBACKDSET}": dset} for dset in dsets]}))
-        sys.exit(0)
-    # Need a tag for any other interaction
-    if not args.tag:
-        print('Must specify tag')
-        sys.exit(1)
-    # If running on just the one dataset, do that first
-    if args.dataset in dsets:
-        add_streamhandler(log)
-        if filelogging:
-            add_filehandler(log, args.dataset)
-        this_run = DatasetProcessor(Dataset(args.dataset, log), \
-                                    args.tag, initialise=False)
-        this_run.start()
-        this_run.join()
-        sys.exit(0)
-    # If initialising, enable console logging anyway, add file logging if
-    # possible and wait until the run is finished to terminate
-    if args.initialise in dsets:
-        add_streamhandler(log)
-        if filelogging:
-            add_filehandler(log, args.initialise)
-        this_run = DatasetProcessor(Dataset(args.initialise, log), \
-                                    args.tag, initialise=True)
-        this_run.start()
-        this_run.join()
-        sys.exit(0)
-    # Check for unrecognised dataset
-    elif args.initialise:
-        print('Dataset not managed by %s, check and try again' % PROP.strip(':'))
-        sys.exit(1)
-    # Otherwise, normal run, loop over all datasets
-    for dataset in dsets:
-        this_log = logging.getLogger('zback.%s' % dataset)
-        if filelogging:
-            add_filehandler(this_log, dataset)
-        this_thread = DatasetProcessor(Dataset(dataset, this_log), args.tag)
-        this_thread.start()
-        # Added to crudely rate limit SSH connections, see if this is the problem
-        time.sleep(1)
+    args.filelogging = filelogging
+    args.dsets = dsets
+    # deal wiv it
+    args.func(args)
 
 if __name__ == '__main__':
     main()
