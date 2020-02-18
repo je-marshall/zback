@@ -686,6 +686,9 @@ def process_cmd(args):
         this_run.start()
         this_run.join()
         sys.exit(0)
+    else:
+        print('Dataset not managed by zback, check and try again.')
+        sys.exit(1)
 
 def configure_cmd(args):
     '''
