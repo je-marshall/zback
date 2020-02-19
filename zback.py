@@ -720,7 +720,7 @@ def configure_cmd(args):
                 continue
             else:
                 break
-       configure_set.set_prop('tags', ','.join(tag_list))
+        configure_set.set_prop('tags', ','.join(tag_list))
     if query_yes_no('Add send job? [y/N]: '):
         while True:
             send_job = input('Specify send job, in the form '\
