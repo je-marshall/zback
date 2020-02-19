@@ -643,10 +643,9 @@ def add_filehandler(logger, logfile):
     logger.addHandler(handler)
     return
 
-def query_yes_no(question):
+def query_yes_no(question, default='no'):
     valid = {'yes': True, 'y': True, 'ye': True, \
              'no': False, 'n': False}
-    default = 'no'
     while True:
         choice = input(question).lower()
         if choice == '':
@@ -704,17 +703,24 @@ def configure_cmd(args):
     else:
         configure_set = Dataset(this_set, log)
         configure_set.set_prop('manage', 'yes')
-    if not query_yes_no('Use default tags? [y/N]: '):
+    if not query_yes_no('Use default tags? [Y/n]: ', default='yes'):
+        tag_list = []
         while True:
-            tags = input('Specify tags for this set, in the form '\
-            'tagname:XX,tagname2:XX : ')
+            tag_name = input('Name for the tag: ')
+            # Could include some regex here at some point to check the tag
+            tag_count = input('Number of snapshots with this tag that you want to keep: ')
             try:
-                tag_dict = dict(tag.split(':') for tag in tags.split(','))
+                this_tag = '%s:%d' % (tag_name, int(tag_count))
+                print('Adding tag: %s' % this_tag)
+                tag_list.append(this_tag)
             except ValueError:
-                print('Invalid tags specified, please try again')
+                print('Please try entering the number of snapshots again')
                 continue
-            configure_set.set_prop('tags', tags)
-            break
+            if query_yes_no('Would you like to add more tags? [y/N]: '):
+                continue
+            else:
+                break
+       configure_set.set_prop('tags', ','.join(tag_list))
     if query_yes_no('Add send job? [y/N]: '):
         while True:
             send_job = input('Specify send job, in the form '\
