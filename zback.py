@@ -727,8 +727,11 @@ def configure_cmd(args):
         send_list = []
         while True:
             send_tag = input('Tag to send: ')
-            if (configure_set.tags == None and send_tag not in DEFTAGS.keys()) \
-                or send_tag not in configure_set.tags.keys():
+            if configure_set.tags == None:
+                set_tags = DEFTAGS
+            else:
+                set_tags = configure_set.tags
+            if send_tag not in set_tags.keys():
                 print('Tag not recognised, make sure it has been added')
                 continue
             send_protocol = input('Protocol to send with : ')
