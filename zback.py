@@ -739,8 +739,8 @@ def configure_cmd(args):
             # No checking done on these because NO
             send_destination = input('Destination to send to: ')
             send_dataset = input('Destination dataset: ')
-            this_send_job = ':'.join(send_tag, send_protocol, \
-                                     send_destination, send_dataset)
+            this_send_job = ':'.join([send_tag, send_protocol, \
+                                     send_destination, send_dataset])
             print('Adding send job: %s' % this_send_job)
             send_list.append(this_send_job)
             if query_yes_no('Add another send job? [y/N]: '):
