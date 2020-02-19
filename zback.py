@@ -727,7 +727,7 @@ def configure_cmd(args):
         send_list = []
         while True:
             send_tag = input('Tag to send: ')
-            if send_tag not in configure_set.props.keys():
+            if send_tag not in configure_set.tags.keys():
                 if send_tag not in DEFTAGS.keys():
                     print('Tag not recognised, make sure it has been added')
                     continue
