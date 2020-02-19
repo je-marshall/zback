@@ -29,6 +29,7 @@ ZBX_CONF = '/etc/zabbix/zabbix_agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
 LOG_LVL = logging.DEBUG
+PROTOCOLS = ('tcp', 'ssh')
 
 class Dataset():
     '''
@@ -721,17 +722,32 @@ def configure_cmd(args):
             else:
                 break
         configure_set.set_prop('tags', ','.join(tag_list))
+        configure_set.get_props()
     if query_yes_no('Add send job? [y/N]: '):
+        send_list = []
         while True:
-            send_job = input('Specify send job, in the form '\
-            'tag:protocol:destination_host:destination_dataset - '\
-            'multiple jobs can be comma-separated: ')
-            for job in send_job.split(','):
-                if len(job.split(':')) != 4:
-                    print('Invalid job spec, try again')
+            send_tag = input('Tag to send: ')
+            if send_tag not in configure_set.props.keys():
+                if send_tag not in DEFTAGS.keys():
+                    print('Tag not recognised, make sure it has been added')
                     continue
-            configure_set.set_prop('send', send_job)
-            break
+            send_protocol = input('Protocol to send with : ')
+            if send_protocol not in PROTOCOLS:
+                print('Not a valid protocol. Currently supported are: %s' % \
+                      (PROTOCOLS,))
+                continue
+            # No checking done on these because NO
+            send_destination = input('Destination to send to: ')
+            send_dataset = input('Destination dataset: ')
+            this_send_job = ':'.join(send_tag, send_protocol, \
+                                     send_destination, send_dataset)
+            print('Adding send job: %s' % this_send_job)
+            send_list.append(this_send_job)
+            if query_yes_no('Add another send job? [y/N]: '):
+                continue
+            else:
+                break
+        configure_set.set_prop('send', ','.join(send_list))
 
 def clear_cmd(args):
     '''
