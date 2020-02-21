@@ -379,19 +379,108 @@ class DatasetProcessor(Thread):
         self.log = self.source.log
         self.destination = None
         self.sending_snap = None
-    def _snapshot(self, job):
+    def _snapshot(self):
         '''
         Takes a snapshot if necessary
         '''
-        pass
+        # If the resend option has been set then skip snapshot
+        if self.send_only:
+            return
+        # Check if this is a snapshot that is being sent from somewhere
+        # else. If it is then there is no need to take a new snapshot
+        try:
+            if self.run_tag in self.source.props['recv']:
+                self.log.info('Tag received from source, no need to snap')
+                return
+        except KeyError:
+            self.log.debug('No recv tags specified')
+
+        # Assuming no 
+        try:
+            self.log.info('Taking snapshot...')
+            self.source.take_snap(tag=self.run_tag)
+            zbx_send(self.source.name, 'snap', '0', self.log)
+        except subprocess.CalledProcessError:
+            zbx_send(self.source.name, 'snap', '1', self.log)
+            self.log.error('Snapshot already exists or zfs command issue')
+            return 1
+        self.sending_snap = self.source.latest_snap
+    def _send(self):
+        '''
+        Performs checks to set up send jobs
+        '''
+        try:
+            send_string = self.source.props['send'].split(',')
+            send_jobs = [substr for substr in send_string \ 
+                         if self.run_tag in substr]
+        except KeyError:
+            self.log.debug('No send jobs specified')
+            return
+        except Exception as exception:
+            self.log.debug(exception)
+            return
+        if send_jobs:
+            self.log.debug('send jobs: %s', send_jobs)
+            self.source.get_holdlist()
+            send_fail = False
+            zbx_send(self.source.name, 'sending', '0', self.log)
+            for job in send_jobs:
+                try:
+                    zbx_send(self.source.name, 'sending', '1', self.log)
+                    self._send_receive(job)
+                    zbx_send(self.source.name, 'sending', '0', self.log)
+                except (BlockingIOError, \
+                        LookupError, \
+                        ConnectionError):
+                    # Known error, logs should reflect this already
+                    send_fail = True
+                    continue
+                except Exception as exception:
+                    # All known exceptions are handled at lower levels with
+                    # debug logging, this is to catch anything that hasn't
+                    # already been anticipated...
+                    send_fail = True
+                    self.log.exception(exception)
+                    self.log.error("Unexpected error during send job")
+                    continue
+            if send_fail:
+                zbx_send(self.source.name, 'sent', '1', self.log)
+            else:
+                zbx_send(self.source.name, 'sent', '0', self.log)
+        else:
+            self.log.debug('No send jobs with this tag')
+            return
+    def _prune(self):
+        '''
+        Using this run_tag, figures out how many snapshots need to be deleted
+        and then does the necessary tidying up
+        '''
+        # Check if the resend option was set
+        if self.send_only:
+            return
+        # Otherwise, sort it out
+        self.log.info('Beginning prune')
+        self.source.get_snaps()
+        try:
+            relevant_snaps = [snap for snap in self.source.snaplist \
+                              if PROP in snap and self.run_tag in snap]
+        except IndexError:
+            self.log.debug('No snapshots to prune')
+            return
+        del_list = []
+        while len(relevant_snaps) > int(self.source.tags[self.run_tag]):
+            # Reverse pop because we want oldest snap
+            del_list.append(relevant_snaps.pop(0))
+        for snap in del_list:
+            try:
+                self.source.destroy_snap(snap)
+            except subprocess.CalledProcessError:
+                continue
+        self.log.info('Pruning complete')
     def _send_receive(self, job):
         '''
+        Handles the full transfer of snapshots including holding snapshots
         '''
-        if not self.run_tag in job:
-            self.log.debug('Send job not for this run, skipping')
-            return
-        # Now that we've checked the tag for sending, strip it from the string
-        # to leave only protocol and destination
         dest_str = re.sub('%s:' % self.run_tag, '', job)
         self.log.debug('dest_str: %s', dest_str)
         send_hold = '%s:SEND' % dest_str
@@ -496,31 +585,6 @@ class DatasetProcessor(Thread):
         if self.initialise:
             self.destination.set_prop('manage', 'yes')
             self.destination.set_prop('recv', self.run_tag)
-    def _prune(self):
-        '''
-        Using this run_tag, figures out how many snapshots need to be deleted
-        and then does the necessary tidying up
-        '''
-        self.log.info('Beginning prune')
-        if self.run_tag not in self.source.tags.keys():
-            raise ValueError('Run tag does not match dataset tags or defaults')
-        self.source.get_snaps()
-        try:
-            relevant_snaps = [snap for snap in self.source.snaplist \
-                              if PROP in snap and self.run_tag in snap]
-        except IndexError:
-            self.log.debug('No snapshots to prune')
-            return
-        del_list = []
-        while len(relevant_snaps) > int(self.source.tags[self.run_tag]):
-            # Reverse pop because we want oldest snap
-            del_list.append(relevant_snaps.pop(0))
-        for snap in del_list:
-            try:
-                self.source.destroy_snap(snap)
-            except subprocess.CalledProcessError:
-                continue
-        self.log.info('Pruning complete')
     def run(self):
         '''
         Performs a run on a dataset.
@@ -528,58 +592,13 @@ class DatasetProcessor(Thread):
         self.log.info('Beginning run with tag %s', self.run_tag)
         self.source.get_props()
         self.log.debug(self.source.props)
-        try:
-            if self.run_tag in self.source.props['recv']:
-                self.log.info('Tag received from source, no need to snap')
-                self._prune()
-                return
-        except KeyError:
-            self.log.debug('No recv tags specified')
         # If this run is not a specified tag then bail
         if self.run_tag not in self.source.tags.keys():
             self.log.info('Specified run tag does not match dataset tags or defaults')
-            return 0
-        try:
-            self.log.info('Taking snapshot...')
-            self.source.take_snap(tag=self.run_tag)
-            zbx_send(self.source.name, 'snap', '0', self.log)
-        except subprocess.CalledProcessError:
-            zbx_send(self.source.name, 'snap', '1', self.log)
-            self.log.error('Snapshot already exists or zfs command issue')
-            return 1
-        self.sending_snap = self.source.latest_snap
-        try:
-            send_tags = self.source.props['send'].split(',')
-            send_jobs = [tag for tag in send_tags if self.run_tag in tag]
-        except KeyError:
-            self.log.debug('No send jobs specified')
-            self._prune()
             return
-        except Exception as exception:
-            self.log.debug(exception)
-            return
-        if send_jobs:
-            self.log.debug('send jobs: %s', send_jobs)
-            self.source.get_holdlist()
-            send_fail = False
-            zbx_send(self.source.name, 'sending', '0', self.log)
-            for job in send_jobs:
-                try:
-                    zbx_send(self.source.name, 'sending', '1', self.log)
-                    self._send_receive(job)
-                    zbx_send(self.source.name, 'sending', '0', self.log)
-                except Exception as exception:
-                    # All known exceptions are handled at lower levels with
-                    # debug logging, this is to catch anything that hasn't
-                    # already been anticipated...
-                    send_fail = True
-                    self.log.exception(exception)
-                    self.log.error("Unexpected error during send job")
-                    continue
-            if send_fail:
-                zbx_send(self.source.name, 'sent', '1', self.log)
-            else:
-                zbx_send(self.source.name, 'sent', '0', self.log)
+        # Run the individual steps
+        self._snapshot()
+        self._send()
         self._prune()
         self.log.info('zback run completed')
 
