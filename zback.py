@@ -188,7 +188,6 @@ class Dataset():
             recv_cmd = 'zfs recv -F %s' % self.name
         else:
             recv_cmd = 'zfs recv %s' % self.name
-        
         recvproc = subprocess.Popen(recv_cmd.split(), \
                                     stdin=sendproc.stdout)
         while recvproc.poll() is None:
@@ -394,8 +393,7 @@ class DatasetProcessor(Thread):
                 return
         except KeyError:
             self.log.debug('No recv tags specified')
-
-        # Assuming no 
+        # Assuming no
         try:
             self.log.info('Taking snapshot...')
             self.source.take_snap(tag=self.run_tag)
@@ -411,7 +409,7 @@ class DatasetProcessor(Thread):
         '''
         try:
             send_string = self.source.props['send'].split(',')
-            send_jobs = [substr for substr in send_string \ 
+            send_jobs = [substr for substr in send_string \
                          if self.run_tag in substr]
         except KeyError:
             self.log.debug('No send jobs specified')
