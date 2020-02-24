@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#
+/usr/bin/env python3
 from logging.handlers import WatchedFileHandler
 from datetime import datetime
 from threading import Thread
@@ -188,7 +189,6 @@ class Dataset():
             recv_cmd = 'zfs recv -F %s' % self.name
         else:
             recv_cmd = 'zfs recv %s' % self.name
-        
         recvproc = subprocess.Popen(recv_cmd.split(), \
                                     stdin=sendproc.stdout)
         while recvproc.poll() is None:
