@@ -1,4 +1,4 @@
-#/usr/bin/env python3
+#!/usr/bin/env python3
 from logging.handlers import WatchedFileHandler
 from datetime import datetime
 from threading import Thread
