@@ -597,7 +597,7 @@ class DatasetProcessor(Thread):
         # Check if the set is paused
         if 'paused' in self.source.props:
             if self.source.props['paused'] == 'yes':
-                self.log.info('Datset pause, skipping')
+                self.log.info('Datset paused, skipping')
                 return
         # Run the individual steps
         self._snapshot()
