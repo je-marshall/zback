@@ -594,6 +594,11 @@ class DatasetProcessor(Thread):
         if self.run_tag not in self.source.tags.keys():
             self.log.info('Specified run tag does not match dataset tags or defaults')
             return
+        # Check if the set is paused
+        if 'paused' in self.props:
+            if self.props['paused'] == 'yes':
+                self.log.info('Datset pause, skipping')
+                return
         # Run the individual steps
         self._snapshot()
         self._send()
@@ -769,6 +774,30 @@ def configure_cmd(args):
                 break
         configure_set.set_prop('send', ','.join(send_list))
 
+def pause_cmd(args):
+    '''
+    Places a flag on a dataset or datasets that prevents further zback runs,
+    useful for maintenance - doesn't remove any other configuration
+    '''
+    if args.dsets is None:
+        print('No datasets managed by zback')
+        sys.exit(1)
+    if args.dataset:
+        setlist = args.dataset
+    else:
+        setlist = args.dsets
+    log = logging.getLogger('zback')
+    for dset in setlist:
+        this_set = Dataset(dset, log)
+        if args.unpause:
+            print('Unpausing %s' % dset)
+            this_set.clear_prop('paused')
+            continue
+        else:
+            print('Pausing %s' % dset)
+            this_set.set_prop('paused', 'yes')
+            continue
+
 def clear_cmd(args):
     '''
     Clears zback related settings and snapshots from a dataset
@@ -844,6 +873,14 @@ def main():
         help=configure_cmd.__doc__.strip())
     parser_configure.set_defaults(func=configure_cmd)
     parser_configure.add_argument('dataset', nargs=1, help='Dataset to configure')
+
+    parser_pause = subparsers.add_parser('pause', \
+        help=configure_cmd.__doc__.strip())
+    parser_pause.set_defaults(func=pause_cmd)
+    parser_pause.add_argument('dataset', nargs='?', \
+        help='Dataset to configure, defaults to all')
+    parser_pause.add_argument('--unpause', action='store_true', \
+        help='Removes the pause flag')
 
     parser_clear = subparsers.add_parser('clear', \
         help=clear_cmd.__doc__.strip())
