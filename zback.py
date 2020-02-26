@@ -595,8 +595,8 @@ class DatasetProcessor(Thread):
             self.log.info('Specified run tag does not match dataset tags or defaults')
             return
         # Check if the set is paused
-        if 'paused' in self.props:
-            if self.props['paused'] == 'yes':
+        if 'paused' in self.source.props:
+            if self.source.props['paused'] == 'yes':
                 self.log.info('Datset pause, skipping')
                 return
         # Run the individual steps
