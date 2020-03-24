@@ -856,6 +856,8 @@ def main():
     parser.set_defaults(func=help_cmd)
     parser.add_argument('-v', '--verbose', action='store_true', \
         help='Logs to console and increases logging output')
+    parser.add_argument('--autocomplete', action='store_true', \
+        help=argparse.SUPPRESS)
 
     parser_process = subparsers.add_parser('process', \
         help=process_cmd.__doc__.strip())
