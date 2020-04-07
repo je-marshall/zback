@@ -252,7 +252,7 @@ class RemoteDataset(Dataset):
                 self.log.debug('stderr: %s' % cmd_err_fmt)
                 self.log.warning('Remote command returned stderr')
                 self.log.warning('remote command: %s', command)
-        except paramiko.SSHException as exception:
+        except paramiko.ssh_exception.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Remote command failed')
             self.log.error('remote command: %s', command)
@@ -272,7 +272,7 @@ class RemoteDataset(Dataset):
         try:
             ipin, ipout, iperr = self.sshclient.exec_command('echo $SSH_CLIENT')
             ip = ipout.read().decode().split()[0]
-        except paramiko.SSHException as exception:
+        except paramiko.ssh_exception.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Could not obtain IP address, netcat cannot start')
             raise ConnectionError
@@ -285,7 +285,7 @@ class RemoteDataset(Dataset):
             # Set it up and send back the port that got used
             ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd, timeout=5)
             return (port, ncerr)
-        except paramiko.SSHException as exception:
+        except paramiko.ssh_exception.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Netcat command could not start')
             raise ConnectionError
@@ -318,7 +318,7 @@ class RemoteDataset(Dataset):
             self.log.error('Socket connection failed')
             self.log.debug(exception)
             raise ConnectionError
-        except paramiko.SSHException as exception:
+        except paramiko.ssh_exception.SSHException as exception:
             self.log.error('SSH channel open failed')
             self.log.debug(exception)
             raise ConnectionError
