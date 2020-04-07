@@ -213,15 +213,15 @@ class RemoteDataset(Dataset):
             self.sshclient = paramiko.client.SSHClient()
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(self.host, banner_timeout=120, auth_timeout=120)
-        except paramiko.BadHostKeyException as exception:
+        except paramiko.ssh_exception.BadHostKeyException as exception:
             self.log.debug(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'bad host key', self.host)
-        except paramiko.AuthenticationException as exception:
+        except paramiko.ssh_exception.AuthenticationException as exception:
             self.log.debug(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'authentication failure', self.host)
-        except paramiko.SSHException as exception:
+        except paramiko.ssh_exception.SSHException as exception:
             self.log.debug(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'check logs', self.host)
@@ -497,20 +497,15 @@ class DatasetProcessor(Thread):
             self.log.debug('No held snapshot')
         # Figure out what type of send we're doing and instantiate the right
         # class:
-        # This is nasty but this bit is failing on an error reading the banner
-        # timeout and I want to catch it TEMP
-        try:
-            if 'local:' in dest_str.split(':')[0]:
-                self.log.debug('Destination is local')
-                dest_name = dest_str.split(':')[-1], \
-                    self.destination = Dataset(dest_name, self.log)
-            else:
-                self.log.debug('Destination is remote')
-                protocol, host, dest_name = dest_str.split(':')
-                self.destination = RemoteDataset(dest_name, host, protocol, \
-                                                    self.log)
-        except Exception as exception:
-            log.exception(exception)
+        if 'local:' in dest_str.split(':')[0]:
+            self.log.debug('Destination is local')
+            dest_name = dest_str.split(':')[-1], \
+                self.destination = Dataset(dest_name, self.log)
+        else:
+            self.log.debug('Destination is remote')
+            protocol, host, dest_name = dest_str.split(':')
+            self.destination = RemoteDataset(dest_name, host, protocol, \
+                                                self.log)
         self.log.debug('Destination set up, checking latest matching snap')
         # Now that we have established a connection the destination dataset we
         # can put a send hold on as in theory we are able to start a send
