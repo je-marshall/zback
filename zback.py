@@ -214,30 +214,30 @@ class RemoteDataset(Dataset):
             self.sshclient.load_system_host_keys()
             self.sshclient.connect(self.host, banner_timeout=120, auth_timeout=120)
         except paramiko.ssh_exception.BadHostKeyException as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'bad host key', self.host)
         except paramiko.ssh_exception.AuthenticationException as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'authentication failure', self.host)
         except paramiko.ssh_exception.SSHException as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'check logs', self.host)
         except socket.error as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Socket error while connecting to ' \
                                   '%s', self.host)
         except IndexError as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Destination incorrectly formatted for ' \
                                   'dataset %s', self.name)
         except IOError as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Could not load system host keys')
         except Exception as exception:
-            self.log.debug(exception)
+            self.log.exception(exception)
             raise ConnectionError('Unexpection! Check debug logs for exception info')
     def _exec_command(self, command):
         '''
