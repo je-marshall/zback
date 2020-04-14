@@ -205,17 +205,29 @@ class RemoteDataset(Dataset):
         self.host = host
         self.protocol = protocol
         self.sshclient = None
+        self.retries = 0
         self._get_ssh_client()
         # Run this now to throw an instant error
         self.get_snaps()
     def _get_ssh_client(self):
         try:
-            self.sshclient = paramiko.client.SSHClient()
-            self.sshclient.load_system_host_keys()
-            self.sshclient.connect(self.host, \
-                                   timeout=120, \
-                                   banner_timeout=120, \
-                                   auth_timeout=120)
+            while self.retries <= 3:
+                try:
+                    time.sleep(random.randint(0,5)
+                    self.sshclient = paramiko.client.SSHClient()
+                    self.sshclient.load_system_host_keys()
+                    self.sshclient.connect(self.host, \
+                                           timeout=120, \
+                                           banner_timeout=120, \
+                                           auth_timeout=120)
+                except paramiko.ssh_exception.SSHException as exception:
+                    self.log.debug(exception)
+                    self.retries += 1
+                    continue
+        except paramiko.ssh_exception.SSHException as exception:
+            self.log.exception(exception)
+            raise ConnectionError('Could not connect to host %s, ' \
+                                  'after 3 retries', self.host)
         except paramiko.ssh_exception.BadHostKeyException as exception:
             self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
@@ -224,10 +236,6 @@ class RemoteDataset(Dataset):
             self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'authentication failure', self.host)
-        except paramiko.ssh_exception.SSHException as exception:
-            self.log.exception(exception)
-            raise ConnectionError('Could not connect to host %s, ' \
-                                  'check logs', self.host)
         except socket.error as exception:
             self.log.exception(exception)
             raise ConnectionError('Socket error while connecting to ' \
