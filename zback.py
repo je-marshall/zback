@@ -213,7 +213,7 @@ class RemoteDataset(Dataset):
         try:
             while self.retries <= 3:
                 try:
-                    time.sleep(random.randint(0,5)
+                    time.sleep(random.randint(0,5))
                     self.sshclient = paramiko.client.SSHClient()
                     self.sshclient.load_system_host_keys()
                     self.sshclient.connect(self.host, \
