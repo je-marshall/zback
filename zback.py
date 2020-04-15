@@ -220,6 +220,7 @@ class RemoteDataset(Dataset):
                                            timeout=120, \
                                            banner_timeout=120, \
                                            auth_timeout=120)
+                    break
                 except paramiko.ssh_exception.SSHException as exception:
                     self.log.debug(exception)
                     self.retries += 1
