@@ -397,7 +397,7 @@ class DatasetProcessor(Thread):
         # If the resend option has been set then skip snapshot
         if self.send_only:
             self.source.get_snaps()
-            self.sending_snap = [snap for snap in source.snaplist \
+            self.sending_snap = [snap for snap in self.source.snaplist \
                                  if self.run_tag in snap].pop()
             return
         # Check if this is a snapshot that is being sent from somewhere
