@@ -396,6 +396,9 @@ class DatasetProcessor(Thread):
         '''
         # If the resend option has been set then skip snapshot
         if self.send_only:
+            self.source.get_snaps()
+            self.sending_snap = [snap for snap in source.snaplist \
+                                 if self.run_tag in snap].pop()
             return
         # Check if this is a snapshot that is being sent from somewhere
         # else. If it is then there is no need to take a new snapshot
@@ -616,7 +619,8 @@ class DatasetProcessor(Thread):
             self._snapshot()
         except BlockingIOError:
             self.log.error('Snapshot failed, ending run')
-            return
+            retur
+            n
         self._send()
         self._prune()
         self.log.info('zback run completed')
