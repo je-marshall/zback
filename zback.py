@@ -413,7 +413,7 @@ class DatasetProcessor(Thread):
         except subprocess.CalledProcessError:
             zbx_send(self.source.name, 'snap', '1', self.log)
             self.log.error('Snapshot already exists or zfs command issue')
-            return 1
+            raise BlockingIOError
         self.sending_snap = self.source.latest_snap
     def _send(self):
         '''
@@ -612,7 +612,11 @@ class DatasetProcessor(Thread):
                 self.log.info('Datset paused, skipping')
                 return
         # Run the individual steps
-        self._snapshot()
+        try:
+            self._snapshot()
+        except BlockingIOError:
+            self.log.error('Snapshot failed, ending run')
+            return
         self._send()
         self._prune()
         self.log.info('zback run completed')
