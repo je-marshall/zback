@@ -734,65 +734,76 @@ def process_cmd(args):
 
 def configure_cmd(args):
     '''
-    Adds or edits zback related properties for a specified dataset
+    Adds or edits zback related properties for a specified dataset. If you pass
+    either tags or send strings via the command line, you will not be prompted
+    for parameters and the strings WILL NOT be validated, so make sure you are
+    passing in something that is correct.
     '''
     this_set = args.dataset.pop()
     log = logging.getLogger('zback.%s' % this_set)
-    if args.dataset in args.dsets:
-        if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
+    configure_set = Dataset(this_set, log)
+    configure_set.get_props()
+    if not args.tags or args.send:
+        if args.dataset in args.dsets:
+            if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
+                return
+        if not query_yes_no('Manage %s with zback? [y/N]: ' % this_set):
             return
-    if not query_yes_no('Manage %s with zback? [y/N]: ' % this_set):
-        return
+        else:
+            manage = 'yes'
+        if not query_yes_no('Use default tags? [Y/n]: ', default='yes'):
+            tag_list = []
+            while True:
+                tag_name = input('Name for the tag: ')
+                # Could include some regex here at some point to check the tag
+                tag_count = input('Number of snapshots with this tag that you want to keep: ')
+                try:
+                    this_tag = '%s:%d' % (tag_name, int(tag_count))
+                    print('Adding tag: %s' % this_tag)
+                    tag_list.append(this_tag)
+                except ValueError:
+                    print('Please try entering the number of snapshots again')
+                    continue
+                if query_yes_no('Would you like to add more tags? [y/N]: '):
+                    continue
+                else:
+                    break
+            tags = ','.join(tag_list)
+        if query_yes_no('Add send job? [y/N]: '):
+            send_list = []
+            while True:
+                send_tag = input('Tag to send: ')
+                if configure_set.tags == None:
+                    set_tags = DEFTAGS
+                else:
+                    set_tags = configure_set.tags
+                if send_tag not in set_tags.keys():
+                    print('Tag not recognised, make sure it has been added')
+                    continue
+                send_protocol = input('Protocol to send with : ')
+                if send_protocol not in PROTOCOLS:
+                    print('Not a valid protocol. Currently supported are: %s' % \
+                          (PROTOCOLS,))
+                    continue
+                # No checking done on these because NO
+                send_destination = input('Destination to send to: ')
+                send_dataset = input('Destination dataset: ')
+                this_send_job = ':'.join([send_tag, send_protocol, \
+                                         send_destination, send_dataset])
+                print('Adding send job: %s' % this_send_job)
+                send_list.append(this_send_job)
+                if query_yes_no('Add another send job? [y/N]: '):
+                    continue
+                else:
+                    break
+            send = ','.join(send_list)
     else:
-        configure_set = Dataset(this_set, log)
-        configure_set.set_prop('manage', 'yes')
-    if not query_yes_no('Use default tags? [Y/n]: ', default='yes'):
-        tag_list = []
-        while True:
-            tag_name = input('Name for the tag: ')
-            # Could include some regex here at some point to check the tag
-            tag_count = input('Number of snapshots with this tag that you want to keep: ')
-            try:
-                this_tag = '%s:%d' % (tag_name, int(tag_count))
-                print('Adding tag: %s' % this_tag)
-                tag_list.append(this_tag)
-            except ValueError:
-                print('Please try entering the number of snapshots again')
-                continue
-            if query_yes_no('Would you like to add more tags? [y/N]: '):
-                continue
-            else:
-                break
-        configure_set.set_prop('tags', ','.join(tag_list))
-        configure_set.get_props()
-    if query_yes_no('Add send job? [y/N]: '):
-        send_list = []
-        while True:
-            send_tag = input('Tag to send: ')
-            if configure_set.tags == None:
-                set_tags = DEFTAGS
-            else:
-                set_tags = configure_set.tags
-            if send_tag not in set_tags.keys():
-                print('Tag not recognised, make sure it has been added')
-                continue
-            send_protocol = input('Protocol to send with : ')
-            if send_protocol not in PROTOCOLS:
-                print('Not a valid protocol. Currently supported are: %s' % \
-                      (PROTOCOLS,))
-                continue
-            # No checking done on these because NO
-            send_destination = input('Destination to send to: ')
-            send_dataset = input('Destination dataset: ')
-            this_send_job = ':'.join([send_tag, send_protocol, \
-                                     send_destination, send_dataset])
-            print('Adding send job: %s' % this_send_job)
-            send_list.append(this_send_job)
-            if query_yes_no('Add another send job? [y/N]: '):
-                continue
-            else:
-                break
-        configure_set.set_prop('send', ','.join(send_list))
+        manage = 'yes'
+    configure_set.set_prop('manage', manage)
+    if args.tags: tags = args.tags.pop()
+    if args.send: send = args.send.pop()
+    if tags: configure_set.set_prop('tags', tags)
+    if send: configure_set.set_prop('send', send)
 
 def pause_cmd(args):
     '''
@@ -895,6 +906,10 @@ def main():
         help=configure_cmd.__doc__.strip())
     parser_configure.set_defaults(func=configure_cmd)
     parser_configure.add_argument('dataset', nargs=1, help='Dataset to configure')
+    parser_configure.add_argument('--tags', nargs='?', \
+        help='Pass tags as string')
+    parser_configure.add_argument('--send', nargs='?', \
+        help='Pass send jobs as string')
 
     parser_pause = subparsers.add_parser('pause', \
         help=configure_cmd.__doc__.strip())
