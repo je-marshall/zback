@@ -743,6 +743,8 @@ def configure_cmd(args):
     log = logging.getLogger('zback.%s' % this_set)
     configure_set = Dataset(this_set, log)
     configure_set.get_props()
+    tags = False
+    send = False
     if not args.tags and not args.send:
         log.debug('No arguments passed, prompting')
         if args.dataset in args.dsets:
