@@ -801,8 +801,8 @@ def configure_cmd(args):
     else:
         manage = 'yes'
     configure_set.set_prop('manage', manage)
-    if args.tags: tags = args.tags.pop()
-    if args.send: send = args.send.pop()
+    if args.tags: tags = args.tags
+    if args.send: send = args.send
     if tags: configure_set.set_prop('tags', tags)
     if send: configure_set.set_prop('send', send)
 
