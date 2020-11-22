@@ -743,7 +743,8 @@ def configure_cmd(args):
     log = logging.getLogger('zback.%s' % this_set)
     configure_set = Dataset(this_set, log)
     configure_set.get_props()
-    if not args.tags or args.send:
+    if not args.tags and not args.send:
+        log.debug('No arguments passed, prompting')
         if args.dataset in args.dsets:
             if not query_yes_no('This set already managed by zback, overwrite? [y/N]: '):
                 return
