@@ -86,6 +86,9 @@ class Dataset():
         except KeyError:
             self.log.debug('No tags specified, using defaults')
             self.tags = DEFTAGS
+        except ValueError:
+            self.log.debug('Incorrect tag format specified, cannot proceed')
+            raise
     def get_props(self):
         '''
         Updates the internal property dictionary
