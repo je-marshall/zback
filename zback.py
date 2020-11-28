@@ -28,7 +28,7 @@ ZBX_SEND = True
 ZBX_CONF = '/etc/zabbix/zabbix_agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
-LOG_LVL = logging.DEBUG
+LOG_LVL = logging.INFO
 PROTOCOLS = ('tcp', 'ssh')
 
 class Dataset():
