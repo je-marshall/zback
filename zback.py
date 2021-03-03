@@ -352,7 +352,7 @@ class RemoteDataset(Dataset):
         port, nc_err = self._nc_listen(recv_cmd)
         self.log.debug('nc listen established on port %s', port)
         # Quick sleep to allow nc to get ready
-        time.sleep(1)
+        time.sleep(3)
         self.log.debug('Establishing connection to remote port %i', port)
         conduit = self._get_connection(port)
         while not nc_err.channel.exit_status_ready():
