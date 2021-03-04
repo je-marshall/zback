@@ -292,9 +292,9 @@ class RemoteDataset(Dataset):
             self.log.error('Could not obtain IP address, netcat cannot start')
             raise ConnectionError
         if self.protocol == 'ssh':
-            nc_cmd = 'nc localhost -l %i -e "%s"' % (port, recv_cmd)
+            nc_cmd = 'nc localhost -l %i --keep-open -e "%s"' % (port, recv_cmd)
         else:
-            nc_cmd = 'nc -l %s -e "%s" --allow %s' % (port, recv_cmd, ip)
+            nc_cmd = 'nc -l %i --keep-open -e "%s" --allow %s' % (port, recv_cmd, ip)
         self.log.debug(nc_cmd)
         try:
             # Set it up and send back the port that got used
