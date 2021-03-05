@@ -299,7 +299,7 @@ class RemoteDataset(Dataset):
         try:
             # Set it up and send back the port that got used
             ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd, timeout=5)
-            return (port, ncerr)
+            return (port, ncout, ncerr)
         except paramiko.ssh_exception.SSHException as exception:
             self.log.debug(exception)
             self.log.error('Netcat command could not start')
@@ -349,7 +349,7 @@ class RemoteDataset(Dataset):
             recv_cmd = '/sbin/zfs recv %s' % self.name
         self.log.debug('recv_cmd: %s' % recv_cmd)
         self.log.debug('Setting up NC listener on remote')
-        port, nc_err = self._nc_listen(recv_cmd)
+        port, nc_out, nc_err = self._nc_listen(recv_cmd)
         self.log.debug('nc listen established on port %s', port)
         # Quick sleep to allow nc to get ready
         time.sleep(3)
@@ -368,6 +368,12 @@ class RemoteDataset(Dataset):
                     raise
                 else:
                     break
+        try:
+            nc_output = nc_out.read()
+            if nc_output:
+                self.log.error('Netcat error: %s', nc_error)
+        except socket.timeout:
+            self.log.debug('No netcat output to read')
         try:
             nc_error = nc_err.read()
             if nc_error:
