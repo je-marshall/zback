@@ -379,7 +379,7 @@ class RemoteDataset(Dataset):
             nc_error = nc_err.read()
             if nc_error:
                 self.log.error('Netcat error: %s', nc_error)
-                raise ConnectionError
+                #raise ConnectionError
         except socket.timeout:
             self.log.debug('No netcat error to read')
         self.log.info('Send successful')
