@@ -355,6 +355,19 @@ class RemoteDataset(Dataset):
         # Quick sleep to allow nc to get ready
         time.sleep(3)
         self.log.debug('Establishing connection to remote port %i', port)
+        try:
+            nc_output = nc_out.read()
+            if nc_output:
+                self.log.error('Netcat output: %s', nc_error)
+        except socket.timeout:
+            self.log.debug('No netcat output to read')
+        try:
+            nc_error = nc_err.read()
+            if nc_error:
+                self.log.error('Netcat error: %s', nc_error)
+                #raise ConnectionError
+        except socket.timeout:
+            self.log.debug('No netcat error to read')
         conduit = self._get_connection(port)
         while not nc_err.channel.exit_status_ready():
             data = sendproc.stdout.read(4096)
@@ -369,19 +382,6 @@ class RemoteDataset(Dataset):
                     raise
                 else:
                     break
-        try:
-            nc_output = nc_out.read()
-            if nc_output:
-                self.log.error('Netcat error: %s', nc_error)
-        except socket.timeout:
-            self.log.debug('No netcat output to read')
-        try:
-            nc_error = nc_err.read()
-            if nc_error:
-                self.log.error('Netcat error: %s', nc_error)
-                #raise ConnectionError
-        except socket.timeout:
-            self.log.debug('No netcat error to read')
         self.log.info('Send successful')
         conduit.close()
 
