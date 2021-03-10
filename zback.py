@@ -28,7 +28,7 @@ ZBX_SEND = True
 ZBX_CONF = '/etc/zabbix/zabbix_agentd.conf'
 ZBX_BIN = '/bin/zabbix_sender'
 LOG_DIR = '/var/log/zback/'
-LOG_LVL = logging.INFO
+LOG_LVL = logging.DEBUG
 PROTOCOLS = ('tcp', 'ssh')
 
 class Dataset():
@@ -229,10 +229,6 @@ class RemoteDataset(Dataset):
                     self.log.debug(exception)
                     self.retries += 1
                     continue
-        except paramiko.ssh_exception.SSHException as exception:
-            self.log.exception(exception)
-            raise ConnectionError('Could not connect to host %s, ' \
-                                  'after 3 retries', self.host)
         except paramiko.ssh_exception.BadHostKeyException as exception:
             self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
@@ -241,6 +237,10 @@ class RemoteDataset(Dataset):
             self.log.exception(exception)
             raise ConnectionError('Could not connect to host %s, ' \
                                   'authentication failure', self.host)
+        except paramiko.ssh_exception.SSHException as exception:
+            self.log.exception(exception)
+            raise ConnectionError('Could not connect to host %s, ' \
+                                  'after 3 retries', self.host)
         except socket.error as exception:
             self.log.exception(exception)
             raise ConnectionError('Socket error while connecting to ' \
@@ -281,34 +281,48 @@ class RemoteDataset(Dataset):
         useful for either a direct send or a send via SSH. If sending via SSH
         establish a listener only on localhost
         '''
-        # Ephemeral ports, pretty unlikely to be used
-        port = random.randint(32768, 60999)
-        # Get IP address from the point of view of the remote server, so as to
-        # whitelist it for netcat
-        try:
-            ipin, ipout, iperr = self.sshclient.exec_command('echo $SSH_CLIENT')
-            ip = ipout.read().decode().split()[0]
-        except paramiko.ssh_exception.SSHException as exception:
-            self.log.debug(exception)
-            self.log.error('Could not obtain IP address, netcat cannot start')
-            raise ConnectionError
-        if self.protocol == 'ssh':
-            nc_cmd = 'nc localhost -l %i -c "%s" -v' % (port, recv_cmd)
-        else:
-            nc_cmd = 'nc -l %i -c "%s" -v --allow %s' % (port, recv_cmd, ip)
-        self.log.debug(nc_cmd)
-        try:
-            # Set it up and send back the port that got used
-            ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd, timeout=5)
-            return (port, ncout, ncerr)
-        except paramiko.ssh_exception.SSHException as exception:
-            self.log.debug(exception)
-            self.log.error('Netcat command could not start')
-            raise ConnectionError
-        except socket.timeout as exception:
-            self.log.debug(exception)
-            self.log.warning('Timed out waiting for nc command')
-            raise ConnectionError
+        # Turns out we need to make sure that netcat actually starts, ie that
+        # the port is not in use
+        count = 0
+        # Ephemeral ports, pretty unlikely to be used HO HO HO
+        while count < 3:
+            port = random.randint(32768, 60999)
+            # Get IP address from the point of view of the remote server, so as to
+            # whitelist it for netcat
+            try:
+                ipin, ipout, iperr = self.sshclient.exec_command('echo $SSH_CLIENT')
+                ip = ipout.read().decode().split()[0]
+            except paramiko.ssh_exception.SSHException as exception:
+                self.log.debug(exception)
+                self.log.error('Could not obtain IP address, netcat cannot start')
+                raise ConnectionError
+            if self.protocol == 'ssh':
+                nc_cmd = 'nc localhost -l %i -e "%s" ' % (port, recv_cmd)
+            else:
+                nc_cmd = 'nc -l %i -e "%s" --allow %s' % (port, recv_cmd, ip)
+            self.log.debug(nc_cmd)
+            try:
+                # Set it up and send back the port that got used
+                ncin, ncout, ncerr = self.sshclient.exec_command(nc_cmd, timeout=5)
+            except paramiko.ssh_exception.SSHException as exception:
+                self.log.debug(exception)
+                self.log.error('Netcat command could not start')
+                raise ConnectionError
+            except socket.timeout as exception:
+                self.log.debug(exception)
+                self.log.warning('Timed out waiting for nc command')
+                raise ConnectionError
+            try:
+                ncerror = ncerr.read()
+                if ncerror:
+                    self.log.debug('Netcat error: %s"' % ncerror.decode())
+                    count += 1
+                    continue
+            except socket.timeout:
+                return (port, ncerr)
+        self.log.error('Could not establish Netcat listener, enable debug logs for more info')
+        raise ConnectionError
+
     def _get_connection(self, port):
         '''
         Wraps _nc_listen and returns either a direct socket connection or a
@@ -343,33 +357,19 @@ class RemoteDataset(Dataset):
         Takes a subprocess as input and reads from its stdout. If the initialise
         flag is set, it attempts a -F recv
         '''
-        self.log.info('Sending to %s...', self.host)
+        self.log.info('Sending to %s:%s', self.host, self.name)
         if initialise:
             recv_cmd = '/sbin/zfs recv -F %s' % self.name
         else:
             recv_cmd = '/sbin/zfs recv %s' % self.name
         self.log.debug('recv_cmd: %s' % recv_cmd)
         self.log.debug('Setting up NC listener on remote')
-        port, nc_out, nc_err = self._nc_listen(recv_cmd)
+        port, ncerr = self._nc_listen(recv_cmd)
         self.log.debug('nc listen established on port %s', port)
-        # Quick sleep to allow nc to get ready
-        time.sleep(3)
         self.log.debug('Establishing connection to remote port %i', port)
-        try:
-            nc_output = nc_out.read()
-            if nc_output:
-                self.log.error('Netcat output: %s', nc_error)
-        except socket.timeout:
-            self.log.debug('No netcat output to read')
-        try:
-            nc_error = nc_err.read()
-            if nc_error:
-                self.log.error('Netcat error: %s', nc_error)
-                #raise ConnectionError
-        except socket.timeout:
-            self.log.debug('No netcat error to read')
         conduit = self._get_connection(port)
-        while not nc_err.channel.exit_status_ready():
+        self.log.info('Beginning send to remote host')
+        while not ncerr.channel.exit_status_ready():
             data = sendproc.stdout.read(4096)
             try:
                 if data:
@@ -498,6 +498,7 @@ class DatasetProcessor(Thread):
             try:
                 self.source.destroy_snap(snap)
             except subprocess.CalledProcessError:
+                self.log.info('Snapshot %s possibly held, check send job status', % snap)
                 continue
         self.log.info('Pruning complete')
     def _send_receive(self, job):
@@ -629,8 +630,7 @@ class DatasetProcessor(Thread):
             self._snapshot()
         except BlockingIOError:
             self.log.error('Snapshot failed, ending run')
-            retur
-            n
+            return
         self._send()
         self._prune()
         self.log.info('zback run completed')
