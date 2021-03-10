@@ -498,7 +498,7 @@ class DatasetProcessor(Thread):
             try:
                 self.source.destroy_snap(snap)
             except subprocess.CalledProcessError:
-                self.log.info('Snapshot %s possibly held, check send job status', % snap)
+                self.log.info('Snapshot %s possibly held, check send job status', snap)
                 continue
         self.log.info('Pruning complete')
     def _send_receive(self, job):
