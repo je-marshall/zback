@@ -925,7 +925,7 @@ def main():
         help='Pass send jobs as string')
 
     parser_pause = subparsers.add_parser('pause', \
-        help=pause.__doc__.strip())
+        help=pause_cmd.__doc__.strip())
     parser_pause.set_defaults(func=pause_cmd)
     parser_pause.add_argument('dataset', nargs='?', \
         help='Dataset to configure, defaults to all')
