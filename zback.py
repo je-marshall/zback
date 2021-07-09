@@ -411,7 +411,7 @@ class DatasetProcessor(Thread):
         Takes a snapshot if necessary
         '''
         # If the resend option has been set then skip snapshot
-        if self.send_only:
+        if self.resend:
             self.source.get_snaps()
             self.sending_snap = [snap for snap in self.source.snaplist \
                                  if self.run_tag in snap].pop()
@@ -499,7 +499,7 @@ class DatasetProcessor(Thread):
         and then does the necessary tidying up
         '''
         # Check if the resend option was set
-        if self.send_only:
+        if self.resend:
             return
         # Otherwise, sort it out
         self.log.info('Beginning prune')
