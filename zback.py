@@ -394,8 +394,8 @@ class DatasetProcessor(Thread):
         Thread.__init__(self)
         self.source = source_dataset
         self.run_tag = args.tag
-        self.initialise = args.init
-        self.send_only = args.resend
+        self.init = args.init.pop()
+        self.resend = args.resend.pop()
         self.tags = None
         self.log = self.source.log
         self.destination = None
@@ -438,17 +438,17 @@ class DatasetProcessor(Thread):
                          if self.run_tag in substr]
             # If we are initialising or resending then we want to make sure that
             # we only set up the one send job
-            if self.initialise:
+            if self.init:
                 send_jobs = [job for job in send_jobs \
-                             if set(self.initialise.split(':')).issubset(job.split(':'))]
+                             if set(self.init.split(':')).issubset(job.split(':'))]
                 if not send_jobs:
-                    self.log.error('Destinaton %s not found', self.initialise)
+                    self.log.error('Destinaton %s not found', self.init)
                     raise KeyError
-            if self.send_only:
+            if self.resend:
                 send_jobs = [job for job in send_jobs \
-                             if set(self.send_only.split(':')).issubset(job.split(':'))]
+                             if set(self.resend.split(':')).issubset(job.split(':'))]
                 if not send_jobs:
-                    self.log.error('Destinaton %s not found', self.send_only)
+                    self.log.error('Destinaton %s not found', self.resend)
                     raise KeyError
         except KeyError:
             self.log.debug('No send jobs specified')
