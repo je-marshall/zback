@@ -394,12 +394,18 @@ class DatasetProcessor(Thread):
         Thread.__init__(self)
         self.source = source_dataset
         self.run_tag = args.tag
-        self.init = args.init.pop()
-        self.resend = args.resend.pop()
         self.tags = None
         self.log = self.source.log
         self.destination = None
         self.sending_snap = None
+        if args.init:
+            self.init = args.init.pop()
+        else:
+            self.init = False
+        if args.resend:
+            self.resend = args.resend.pop()
+        else:
+            self.resend = False
     def _snapshot(self):
         '''
         Takes a snapshot if necessary
