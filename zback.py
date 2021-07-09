@@ -440,13 +440,13 @@ class DatasetProcessor(Thread):
             # we only set up the one send job
             if args.init:
                 send_jobs = [job for job in send_jobs \
-                             if set(args.init.split(':')).issubset(job.split(':')])
+                             if set(args.init.split(':')).issubset(job.split(':'))
                 if not send_jobs:
                     self.log.error('Destinaton %s not found', args.init)
                     raise KeyError
             if args.resend:
                 send_jobs = [job for job in send_jobs \
-                             if set(args.resend.split(':')).issubset(job.split(':')])
+                             if set(args.resend.split(':')).issubset(job.split(':'))
                 if not send_jobs:
                     self.log.error('Destinaton %s not found', args.resend)
                     raise KeyError
