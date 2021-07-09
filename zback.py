@@ -394,18 +394,24 @@ class DatasetProcessor(Thread):
         Thread.__init__(self)
         self.source = source_dataset
         self.run_tag = args.tag
-        self.initialise = args.init
-        self.send_only = args.resend
         self.tags = None
         self.log = self.source.log
         self.destination = None
         self.sending_snap = None
+        if args.init:
+            self.init = args.init.pop()
+        else:
+            self.init = False
+        if args.resend:
+            self.resend = args.resend.pop()
+        else:
+            self.resend = False
     def _snapshot(self):
         '''
         Takes a snapshot if necessary
         '''
         # If the resend option has been set then skip snapshot
-        if self.send_only:
+        if self.resend:
             self.source.get_snaps()
             self.sending_snap = [snap for snap in self.source.snaplist \
                                  if self.run_tag in snap].pop()
@@ -436,6 +442,20 @@ class DatasetProcessor(Thread):
             send_string = self.source.props['send'].split(',')
             send_jobs = [substr for substr in send_string \
                          if self.run_tag in substr]
+            # If we are initialising or resending then we want to make sure that
+            # we only set up the one send job
+            if self.init:
+                send_jobs = [job for job in send_jobs \
+                             if set(self.init.split(':')).issubset(job.split(':'))]
+                if not send_jobs:
+                    self.log.error('Destinaton %s not found', self.init)
+                    raise KeyError
+            if self.resend:
+                send_jobs = [job for job in send_jobs \
+                             if set(self.resend.split(':')).issubset(job.split(':'))]
+                if not send_jobs:
+                    self.log.error('Destinaton %s not found', self.resend)
+                    raise KeyError
         except KeyError:
             self.log.debug('No send jobs specified')
             return
@@ -479,7 +499,7 @@ class DatasetProcessor(Thread):
         and then does the necessary tidying up
         '''
         # Check if the resend option was set
-        if self.send_only:
+        if self.resend:
             return
         # Otherwise, sort it out
         self.log.info('Beginning prune')
@@ -543,7 +563,7 @@ class DatasetProcessor(Thread):
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
             if self.destination.snaplist:
-                if self.initialise:
+                if self.init:
                     self.log.error('Will not initialise destination as it has snapshots')
                     self.source.release_snap(self.sending_snap, send_hold)
                     raise BlockingIOError
@@ -556,7 +576,7 @@ class DatasetProcessor(Thread):
                 src_match = None
         except IndexError:
             self.log.debug('No common snapshots')
-            if not self.initialise:
+            if not self.init:
                 self.source.release_snap(self.sending_snap, send_hold)
                 raise LookupError('No snapshots in common and not initialising')
             src_match = None
@@ -564,7 +584,7 @@ class DatasetProcessor(Thread):
         try:
             self.log.debug('Beginning send')
             sendproc = self.source.send(src_match)
-            self.destination.receive(sendproc, initialise=self.initialise)
+            self.destination.receive(sendproc, initialise=self.init)
         except ConnectionError:
             # Doesn't matter what went wrong, pull the send hold and bail
             self.log.debug('Error during sending, attempting to release send hold')
@@ -606,7 +626,7 @@ class DatasetProcessor(Thread):
                 except subprocess.CalledProcessError:
                     continue
         # If this was an init run, set dest props
-        if self.initialise:
+        if self.init:
             self.destination.set_prop('manage', 'yes')
             self.destination.set_prop('recv', self.run_tag)
     def run(self):
@@ -910,10 +930,10 @@ def main():
         help='Defaults to all zback managed datasets')
     parser_process.add_argument('tag', \
         help='REQUIRED: tag for backup run')
-    parser_process.add_argument('--init', action='store_true', \
-        help='Initialise destination dataset if sending')
-    parser_process.add_argument('--resend', action='store_true', \
-        help='Do not snapshot or prune, just attempt to resend last snapshot NOT IMPLEMENTED YET')
+    parser_process.add_argument('--init', nargs=1, \
+        help='Specify destination to initialise - will not work if dest has snapshots')
+    parser_process.add_argument('--resend', nargs=1, \
+        help='Do not snapshot or prune, just attempt to resend last snapshot to specified destination')
 
     parser_configure = subparsers.add_parser('configure', \
         help=configure_cmd.__doc__.strip())
