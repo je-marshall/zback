@@ -563,7 +563,7 @@ class DatasetProcessor(Thread):
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
             if self.destination.snaplist:
-                if self.initialise:
+                if self.init:
                     self.log.error('Will not initialise destination as it has snapshots')
                     self.source.release_snap(self.sending_snap, send_hold)
                     raise BlockingIOError
@@ -576,7 +576,7 @@ class DatasetProcessor(Thread):
                 src_match = None
         except IndexError:
             self.log.debug('No common snapshots')
-            if not self.initialise:
+            if not self.init:
                 self.source.release_snap(self.sending_snap, send_hold)
                 raise LookupError('No snapshots in common and not initialising')
             src_match = None
@@ -584,7 +584,7 @@ class DatasetProcessor(Thread):
         try:
             self.log.debug('Beginning send')
             sendproc = self.source.send(src_match)
-            self.destination.receive(sendproc, initialise=self.initialise)
+            self.destination.receive(sendproc, initialise=self.init)
         except ConnectionError:
             # Doesn't matter what went wrong, pull the send hold and bail
             self.log.debug('Error during sending, attempting to release send hold')
@@ -626,7 +626,7 @@ class DatasetProcessor(Thread):
                 except subprocess.CalledProcessError:
                     continue
         # If this was an init run, set dest props
-        if self.initialise:
+        if self.init:
             self.destination.set_prop('manage', 'yes')
             self.destination.set_prop('recv', self.run_tag)
     def run(self):
