@@ -436,6 +436,14 @@ class DatasetProcessor(Thread):
             send_string = self.source.props['send'].split(',')
             send_jobs = [substr for substr in send_string \
                          if self.run_tag in substr]
+            # If we are initialising or resending then we want to make sure that
+            # we only set up the one send job
+            if args.init:
+                send_jobs = [job for job in send_jobs \
+                             if set(args.init.split(':')).issubset(job.split(':')]
+            if args.resend:
+                send_jobs = [job for job in send_jobs \
+                             if set(args.resend.split(':')).issubset(job.split(':')]
         except KeyError:
             self.log.debug('No send jobs specified')
             return
@@ -910,10 +918,10 @@ def main():
         help='Defaults to all zback managed datasets')
     parser_process.add_argument('tag', \
         help='REQUIRED: tag for backup run')
-    parser_process.add_argument('--init', action='store_true', \
-        help='Initialise destination dataset if sending')
-    parser_process.add_argument('--resend', action='store_true', \
-        help='Do not snapshot or prune, just attempt to resend last snapshot NOT IMPLEMENTED YET')
+    parser_process.add_argument('--init', nargs=1, \
+        help='Specify destination to initialise - will not work if dest has snapshots')
+    parser_process.add_argument('--resend', nargs=1, \
+        help='Do not snapshot or prune, just attempt to resend last snapshot to specified destination')
 
     parser_configure = subparsers.add_parser('configure', \
         help=configure_cmd.__doc__.strip())
