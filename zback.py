@@ -222,7 +222,7 @@ class RemoteDataset(Dataset):
                     self.sshclient.load_system_host_keys()
                     self.sshclient.connect(self.host, \
                                            timeout=120, \
-                                           banner_timeout=120, \
+                                           banner_timeout=220, \
                                            auth_timeout=120)
                     break
                 except paramiko.ssh_exception.SSHException as exception:
