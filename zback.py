@@ -222,7 +222,7 @@ class RemoteDataset(Dataset):
                     self.sshclient.load_system_host_keys()
                     self.sshclient.connect(self.host, \
                                            timeout=120, \
-                                           banner_timeout=120, \
+                                           banner_timeout=220, \
                                            auth_timeout=120)
                     break
                 except paramiko.ssh_exception.SSHException as exception:
@@ -888,6 +888,15 @@ def clear_cmd(args):
         clear_set.get_snaps()
         for snap in clear_set.snaplist:
             clear_set.destroy_snap(snap)
+    if args.send or args.full:
+        print('Clearing all send holds')
+        clear_set.get_holdlist()
+        for snap in clear_set.holdlist:
+            snapholds = clear_set.get_holds(snap)
+            for hold in snapholds:
+                if 'SEND' in hold:
+                    print('Clearing hold %s from snap %s', snap, hold)
+                    clear_set.release_snap(snap, hold)
 
 def zabbix_cmd(args):
     '''
@@ -960,7 +969,9 @@ def main():
     parser_clear.add_argument('--props', action='store_true', \
         help='Clear zback related properties')
     parser_clear.add_argument('--holds', action='store_true', \
-        help='Remove send/recv holds placed on snapshots')
+        help='Remove all zback holds placed on snapshots')
+    parser_clear.add_argument('--send', action='store_true', \
+        help='Remove send holds placed on snapshots')
     parser_clear.add_argument('--snaps', action='store_true', \
         help='Destroy zback-created snapshots')
     parser_clear.add_argument('--full', action='store_true', \
