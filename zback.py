@@ -895,7 +895,7 @@ def clear_cmd(args):
             snapholds = clear_set.get_holds(snap)
             for hold in snapholds:
                 if 'SEND' in hold:
-                    print('Clearing hold %s from snap %s', snap, hold)
+                    print('Clearing hold %s from snap %s' % snap, hold)
                     clear_set.release_snap(snap, hold)
 
 def zabbix_cmd(args):
