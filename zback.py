@@ -439,25 +439,30 @@ class DatasetProcessor(Thread):
         Performs checks to set up send jobs
         '''
         try:
-            send_string = self.source.props['send'].split(',')
-            send_jobs = [substr for substr in send_string \
-                         if self.run_tag in substr]
+            send_list = self.source.props['send'].split(',')
+            send_jobs = [job for job in send_list \
+                         if self.run_tag in job]
             # If we are initialising or resending then we want to make sure that
             # we only set up the one send job
             if self.init:
                 send_jobs = [job for job in send_jobs \
-                             if set(self.init.split(':')).issubset(job.split(':'))]
+                             if self.init in job]
                 if not send_jobs:
                     self.log.error('Destinaton %s not found', self.init)
                     raise KeyError
+                if len(send_jobs) > 1:
+                    self.log.error('Multiple matching destinations, refusing to initialise')
+                    raise KeyError
             if self.resend:
                 send_jobs = [job for job in send_jobs \
-                             if set(self.resend.split(':')).issubset(job.split(':'))]
+                             if self.resend in job]
                 if not send_jobs:
                     self.log.error('Destinaton %s not found', self.resend)
                     raise KeyError
+                if len(send_jobs) > 1:
+                    self.log.error('Multiple matching destinations, refusing to resend')
+                    raise KeyError
         except KeyError:
-            self.log.debug('No send jobs specified')
             return
         except Exception as exception:
             self.log.debug(exception)
