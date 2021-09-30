@@ -874,9 +874,9 @@ def clear_cmd(args):
     if args.dsets is None:
         print('No datasets managed by zback')
         sys.exit(1)
-    # Thought about checking if this is a zback managed dset but tbh there isn't
-    # a hell of a lot of point, either it is and clearing works or it isn't and
-    # it fails...
+    if args.dataset not in args.dsets:
+        print('Dataset not managed by zback')
+        sys.exit(1)
     log = logging.getLogger('zback')
     clear_set = Dataset(args.dataset.pop(), log)
     clear_set.get_props()
