@@ -564,6 +564,7 @@ class DatasetProcessor(Thread):
         self.source.hold_snap(self.sending_snap, send_hold)
         # Now that we have a destination dataset set up, we need to check their
         # respective snaplists:
+        src_match = None
         try:
             # At this point, check if the destination has any snapshots. If it
             # does, refuse to initialise it.
@@ -572,13 +573,16 @@ class DatasetProcessor(Thread):
                     self.log.error('Will not initialise destination as it has snapshots')
                     self.source.release_snap(self.sending_snap, send_hold)
                     raise BlockingIOError
-                latest_remote = [snap for snap in self.destination.snaplist \
-                                if self.run_tag in snap].pop()
-                src_match = [snap for snap in self.source.snaplist \
-                            if snap.split('@')[-1] == latest_remote.split('@')[-1] \
-                            and self.run_tag in snap].pop()
-            else:
-                src_match = None
+                # Just to be sure, get the latest latest snapshot list
+                self.destination.get_snaps()
+                self.source.get_snaps()
+                # Can't think of a cleaner way of keeping the actual snapshots
+                # name while doing this match
+                for dstsnap in [snap.split('@')[-1] for snap in self.destination.snaplist]:
+                    for snap in self.source.snaplist:
+                        if dstsnap in snap:
+                            src_match = snap
+                            break
         except IndexError:
             self.log.debug('No common snapshots')
             if not self.init:
