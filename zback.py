@@ -878,7 +878,7 @@ def clear_cmd(args):
     if args.dsets is None:
         print('No datasets managed by zback')
         sys.exit(1)
-    if args.dataset not in args.dsets:
+    if args.dataset.pop() not in args.dsets:
         print('Dataset not managed by zback')
         sys.exit(1)
     log = logging.getLogger('zback')
