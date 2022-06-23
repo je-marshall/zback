@@ -550,8 +550,8 @@ class DatasetProcessor(Thread):
         # class:
         if 'local:' in dest_str.split(':')[0]:
             self.log.debug('Destination is local')
-            dest_name = dest_str.split(':')[-1], \
-                self.destination = Dataset(dest_name, self.log)
+            dest_name = dest_str.split(':')[-1]
+            self.destination = Dataset(dest_name, self.log)
         else:
             self.log.debug('Destination is remote')
             protocol, host, dest_name = dest_str.split(':')
