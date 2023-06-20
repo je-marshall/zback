@@ -576,10 +576,13 @@ class DatasetProcessor(Thread):
                 # Just to be sure, get the latest latest snapshot list
                 self.destination.get_snaps()
                 self.source.get_snaps()
+                # Filter out only snaps for this current run
+                dst_snaps = [snap for snap in self.destination.snaplist if self.run_tag in snap]
+                src_snaps = [snap for snap in self.source.snaplist if self.run_tag in snap]
                 # Can't think of a cleaner way of keeping the actual snapshots
                 # name while doing this match
-                for dstsnap in [snap.split('@')[-1] for snap in self.destination.snaplist]:
-                    for snap in self.source.snaplist:
+                for dstsnap in [snap.split('@')[-1] for snap in dst_snaps]:
+                    for snap in src_snaps:
                         if dstsnap in snap:
                             src_match = snap
                             break
