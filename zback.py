@@ -14,9 +14,9 @@ import os
 import re
 # Suppress warning output that fucks with zabbix
 import warnings
-from cryptography.utils import CryptographyDeprecationWarning
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
-import paramiko
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore')
+    import paramiko
 
 # Globals, because I'm not messing around with loading config files. If you want
 # to change these go ahead.
