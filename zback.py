@@ -423,7 +423,7 @@ class DatasetProcessor(Thread):
             self.log.info('Resend requested, choosing latest snap')
             self.source.get_snaps()
             self.sending_snap = [snap for snap in self.source.snaplist \
-                                 if self.run_tag in snap][0]
+                                 if self.run_tag in snap].pop()
             return
         # Check if this is a snapshot that is being sent from somewhere
         # else. If it is then there is no need to take a new snapshot
@@ -605,7 +605,7 @@ class DatasetProcessor(Thread):
         try:
             self.log.debug('Beginning send')
             if self.sending_snap is not None:
-                sendproc = self.source.send(src_match, self.sending_snap)
+                sendproc = self.source.send(inrem=src_match, send_snap=self.sending_snap)
             else:
                 sendproc = self.source.send(src_match)
             self.destination.receive(sendproc, initialise=self.init)
