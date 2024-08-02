@@ -605,7 +605,7 @@ class DatasetProcessor(Thread):
         try:
             self.log.debug('Beginning send')
             if self.sending_snap is not None:
-                sendproc = self.source.send(src_match, sending_snap)
+                sendproc = self.source.send(src_match, self.sending_snap)
             else:
                 sendproc = self.source.send(src_match)
             self.destination.receive(sendproc, initialise=self.init)
