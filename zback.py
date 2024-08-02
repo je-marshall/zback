@@ -167,16 +167,20 @@ class Dataset():
         '''
         release_cmd = 'zfs release %s %s' % (ref, snap)
         self._exec_command(release_cmd)
-    def send(self, increm=None):
+    def send(self, increm=None, send_snap=None):
         '''
         Something only a source dataset can do
         '''
-        self.get_snaps()
+        if send_snap:
+            sending_snap = send_snap
+        else:
+            self.get_snaps()
+            sending_snap = self.latest_snap
         if increm:
             send_cmd = ('zfs send -c -i %s %s' % (increm, \
-                        self.latest_snap)).split()
+                        self.sending_snap)).split()
         else:
-            send_cmd = ('zfs send -c %s' % self.latest_snap).split()
+            send_cmd = ('zfs send -c %s' % self.sending_snap).split()
         try:
             sendproc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE)
             self.log.debug('successful cmd: %s' % send_cmd)
@@ -416,6 +420,7 @@ class DatasetProcessor(Thread):
         '''
         # If the resend option has been set then skip snapshot
         if self.resend:
+            self.log.info('Resend requested, choosing latest snap')
             self.source.get_snaps()
             self.sending_snap = [snap for snap in self.source.snaplist \
                                  if self.run_tag in snap][0]
@@ -599,7 +604,10 @@ class DatasetProcessor(Thread):
         self.log.debug('src_match: %s', src_match)
         try:
             self.log.debug('Beginning send')
-            sendproc = self.source.send(src_match)
+            if self.sending_snap is not None:
+                sendproc = self.source.send(src_match, sending_snap)
+            else:
+                sendproc = self.source.send(src_match)
             self.destination.receive(sendproc, initialise=self.init)
         except ConnectionError:
             # Doesn't matter what went wrong, pull the send hold and bail
