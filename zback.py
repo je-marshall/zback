@@ -418,7 +418,7 @@ class DatasetProcessor(Thread):
         if self.resend:
             self.source.get_snaps()
             self.sending_snap = [snap for snap in self.source.snaplist \
-                                 if self.run_tag in snap].pop()
+                                 if self.run_tag in snap][0]
             return
         # Check if this is a snapshot that is being sent from somewhere
         # else. If it is then there is no need to take a new snapshot
