@@ -430,6 +430,9 @@ class DatasetProcessor(Thread):
         try:
             if self.run_tag in self.source.props['recv']:
                 self.log.info('Tag received from source, no need to snap')
+                # Make the latest snapshot the sending snap
+                self.source.get_snaps()
+                self.sending_snap = self.source.snaplist.pop()
                 return
         except KeyError:
             self.log.debug('No recv tags specified')
